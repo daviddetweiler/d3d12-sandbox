@@ -65,7 +65,7 @@ namespace matrix {
 				m_current_buffer_for_sink->reserve(initial_capacity);
 			}
 
-			// The returned span of input events will be invalidated upon the next call to swap_buffers
+			// The returned span of input events will be invalidated upon the next call
 			gsl::span<const input_event> swap_buffers()
 			{
 				const std::lock_guard swap_lock {m_swap_mutex};
@@ -78,12 +78,6 @@ namespace matrix {
 			{
 				const std::lock_guard swap_lock {m_swap_mutex};
 				m_current_buffer_for_source->emplace_back(event);
-			}
-
-			auto get()
-			{
-				const std::lock_guard swap_lock {m_swap_mutex};
-				return gsl::span {*m_current_buffer_for_sink};
 			}
 
 		private:
@@ -182,10 +176,14 @@ namespace matrix {
 				&state));
 		}
 
-		void do_client_thread(host_window_client_data& client_data)
+		void do_client_thread(HWND, host_window_client_data& client_data)
 		{
 			while (!client_data.exit_requested) {
-				client_data.input_events.swap_buffers();
+				for (const auto& event : client_data.input_events.swap_buffers()) {
+					if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
+						client_data.exit_requested.signal();
+				}
+
 				std::this_thread::yield();
 			}
 		}
@@ -195,9 +193,9 @@ namespace matrix {
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
 	matrix::host_window_state ui_state {};
-	matrix::create_host_window(instance, ui_state);
-	const std::jthread client_thread {[&ui_state]() {
-		matrix::do_client_thread(ui_state.client_data);
+	const auto host_window = matrix::create_host_window(instance, ui_state);
+	const std::jthread client_thread {[&ui_state, host_window]() {
+		matrix::do_client_thread(host_window, ui_state.client_data);
 		ui_state.exit_confirmed.signal();
 	}};
 
