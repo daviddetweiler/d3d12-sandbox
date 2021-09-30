@@ -1,0 +1,119 @@
+﻿#include "pch.h"
+
+namespace matrix {
+	namespace {
+		int handle_messages_until_quit()
+		{
+			MSG next_message {};
+			while (const auto status_code = GetMessageW(&next_message, nullptr, 0, 0)) {
+				if (status_code == -1)
+					winrt::throw_last_error();
+
+				TranslateMessage(&next_message);
+				DispatchMessageW(&next_message);
+			}
+
+			return gsl::narrow<int>(next_message.wParam);
+		}
+
+		class event {
+		public:
+			event() noexcept : m_not_signalled {} { m_not_signalled.test_and_set(); }
+			void signal() noexcept { m_not_signalled.clear(); }
+			operator bool() noexcept { return !m_not_signalled.test_and_set(); }
+
+		private:
+			std::atomic_flag m_not_signalled {};
+		};
+
+		struct host_window_client_data {
+			event exit_requested;
+		};
+
+		struct host_window_state {
+			event exit_confirmed;
+			host_window_client_data client_data;
+		};
+
+		GSL_SUPPRESS(type .1)
+		GSL_SUPPRESS(f .6)
+		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
+		{
+			const gsl::not_null state = reinterpret_cast<host_window_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+			if (state->exit_confirmed)
+				winrt::check_bool(DestroyWindow(window));
+
+			switch (message) {
+			case WM_CLOSE:
+				state->client_data.exit_requested.signal();
+				return 0;
+
+			case WM_DESTROY:
+				PostQuitMessage(0);
+				return 0;
+
+			default:
+				return DefWindowProcW(window, message, w, l);
+			}
+		}
+
+		GSL_SUPPRESS(type .1)
+		LRESULT handle_host_creation(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
+		{
+			switch (message) {
+			case WM_CREATE: {
+				const gsl::not_null state = reinterpret_cast<LPCREATESTRUCTW>(l)->lpCreateParams;
+				SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state.get()));
+				SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(handle_host_update));
+				return 0;
+			}
+
+			default:
+				return DefWindowProcW(window, message, w, l);
+			}
+		}
+
+		HWND create_host_window(HINSTANCE instance, host_window_state& state)
+		{
+			WNDCLASSEXW window_class {};
+			window_class.cbSize = sizeof(window_class);
+			window_class.hCursor = winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW));
+			window_class.hInstance = instance;
+			window_class.lpszClassName = L"matrix::host_window";
+			window_class.lpfnWndProc = handle_host_creation;
+			winrt::check_bool(RegisterClassExW(&window_class));
+
+			return winrt::check_pointer(CreateWindowExW(
+				WS_EX_APPWINDOW | WS_EX_NOREDIRECTIONBITMAP,
+				window_class.lpszClassName,
+				L"",
+				WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				CW_USEDEFAULT,
+				nullptr,
+				nullptr,
+				window_class.hInstance,
+				&state));
+		}
+
+		void do_client_thread(host_window_client_data& client_data) noexcept
+		{
+			while (!client_data.exit_requested)
+				std::this_thread::yield();
+		}
+	}
+}
+
+int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
+{
+	matrix::host_window_state ui_state {};
+	matrix::create_host_window(instance, ui_state);
+	const std::jthread client_thread {[&ui_state]() noexcept {
+		matrix::do_client_thread(ui_state.client_data);
+		ui_state.exit_confirmed.signal();
+	}};
+
+	return matrix::handle_messages_until_quit();
+}
