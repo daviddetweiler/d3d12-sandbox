@@ -176,15 +176,70 @@ namespace matrix {
 				&state));
 		}
 
-		void do_client_thread(HWND, host_window_client_data& client_data)
+		auto create_dxgi_factory()
 		{
+			return winrt::capture<IDXGIFactory6>(
+				CreateDXGIFactory2, IsDebuggerPresent() ? DXGI_CREATE_FACTORY_DEBUG : 0);
+		}
+
+		auto create_gpu_device(IDXGIFactory6& dxgi_factory)
+		{
+			if (IsDebuggerPresent())
+				winrt::capture<ID3D12Debug>(D3D12GetDebugInterface)->EnableDebugLayer();
+
+			const auto selected_adapter = winrt::capture<IUnknown>(
+				&dxgi_factory, &IDXGIFactory6::EnumAdapterByGpuPreference, 0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE);
+
+			return winrt::capture<ID3D12Device>(D3D12CreateDevice, selected_adapter.get(), D3D_FEATURE_LEVEL_12_1);
+		}
+
+		auto create_command_queue(ID3D12Device& device)
+		{
+			D3D12_COMMAND_QUEUE_DESC description {};
+			return winrt::capture<ID3D12CommandQueue>(&device, &ID3D12Device::CreateCommandQueue, &description);
+		}
+
+		auto create_swap_chain(IDXGIFactory3& factory, ID3D12CommandQueue& presenter_queue, HWND target_window)
+		{
+			DXGI_SWAP_CHAIN_DESC1 description {};
+			description.BufferCount = 2;
+			description.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+			description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			description.SampleDesc.Count = 1;
+			description.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+			winrt::com_ptr<IDXGISwapChain1> swap_chain {};
+			winrt::check_hresult(factory.CreateSwapChainForHwnd(
+				&presenter_queue, target_window, &description, nullptr, nullptr, swap_chain.put()));
+
+			return swap_chain;
+		}
+
+		void present(IDXGISwapChain& swap_chain) { winrt::check_hresult(swap_chain.Present(1, 0)); }
+
+		auto create_fence(ID3D12Device& device, std::uint64_t initial_value)
+		{
+			return winrt::capture<ID3D12Fence>(
+				&device, &ID3D12Device::CreateFence, initial_value, D3D12_FENCE_FLAG_NONE);
+		}
+
+		void do_client_thread(HWND host_window, host_window_client_data& client_data)
+		{
+			const auto dxgi_factory = create_dxgi_factory();
+			const auto device = create_gpu_device(*dxgi_factory);
+			const auto command_queue = create_command_queue(*device);
+			const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
+			std::uint64_t frame_fence_value {};
+			const auto frame_fence = create_fence(*device, frame_fence_value);
 			while (!client_data.exit_requested) {
 				for (const auto& event : client_data.input_events.swap_buffers()) {
 					if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
 						client_data.exit_requested.signal();
 				}
 
-				std::this_thread::yield();
+				present(*swap_chain);
+				winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
+				while (frame_fence->GetCompletedValue() < frame_fence_value)
+					_mm_pause();
 			}
 		}
 	}
