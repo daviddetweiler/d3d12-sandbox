@@ -74,15 +74,11 @@ namespace matrix {
 			gsl::not_null<std::vector<input_event>*> m_current_buffer_for_sink;
 		};
 
-		struct host_window_client_data {
+		struct host_window_state {
+			event exit_confirmed;
 			event exit_requested {};
 			event size_invalidated {};
 			input_event_queue input_events {throwing_default {}};
-		};
-
-		struct host_window_state {
-			event exit_confirmed;
-			host_window_client_data client_data;
 		};
 
 		GSL_SUPPRESS(type .1)
@@ -90,25 +86,24 @@ namespace matrix {
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null state = reinterpret_cast<host_window_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-			auto& client_data = state->client_data;
 			if (state->exit_confirmed)
 				winrt::check_bool(DestroyWindow(window));
 
 			switch (message) {
 			case WM_CLOSE:
-				client_data.exit_requested.signal();
+				state->exit_requested.signal();
 				return 0;
 
 			case WM_SIZE:
-				client_data.size_invalidated.signal();
+				state->size_invalidated.signal();
 				return 0;
 
 			case WM_KEYUP:
-				client_data.input_events.enqueue({input_event_type::key_released, w, l});
+				state->input_events.enqueue({input_event_type::key_released, w, l});
 				return 0;
 
 			case WM_KEYDOWN:
-				client_data.input_events.enqueue({input_event_type::key_pressed, w, l});
+				state->input_events.enqueue({input_event_type::key_pressed, w, l});
 				return 0;
 
 			case WM_DESTROY:
@@ -142,7 +137,7 @@ namespace matrix {
 			window_class.cbSize = sizeof(window_class);
 			window_class.hCursor = winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW));
 			window_class.hInstance = instance;
-			window_class.lpszClassName = L"matrix::host_window";
+			window_class.lpszClassName = L"host_window";
 			window_class.lpfnWndProc = handle_host_creation;
 			winrt::check_bool(RegisterClassExW(&window_class));
 
@@ -206,30 +201,39 @@ namespace matrix {
 			return winrt::capture<ID3D12Fence>(
 				&device, &ID3D12Device::CreateFence, initial_value, D3D12_FENCE_FLAG_NONE);
 		}
+
+		void resize(IDXGISwapChain& swap_chain)
+		{
+			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
+		}
 	}
 }
 
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
-	matrix::host_window_state ui_state {};
-	auto& client_data = ui_state.client_data;
-	const auto host_window = matrix::create_host_window(instance, ui_state);
-	const auto dxgi_factory = matrix::create_dxgi_factory();
-	const auto device = matrix::create_gpu_device(*dxgi_factory);
-	const auto command_queue = matrix::create_command_queue(*device);
-	const auto swap_chain = matrix::create_swap_chain(*dxgi_factory, *command_queue, host_window);
-	std::uint64_t frame_fence_value {};
-	const auto frame_fence = matrix::create_fence(*device, frame_fence_value);
-	while (matrix::flush_message_queue()) {
-		if (client_data.exit_requested)
-			ui_state.exit_confirmed.signal();
+	using namespace matrix;
 
-		for (const auto& event : client_data.input_events.get_current_events()) {
-			if (event.type == matrix::input_event_type::key_pressed && event.w == VK_ESCAPE)
-				client_data.exit_requested.signal();
+	host_window_state host_state {};
+	const auto host_window = create_host_window(instance, host_state);
+	const auto dxgi_factory = create_dxgi_factory();
+	const auto device = create_gpu_device(*dxgi_factory);
+	const auto command_queue = create_command_queue(*device);
+	const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
+	std::uint64_t frame_fence_value {};
+	const auto frame_fence = create_fence(*device, frame_fence_value);
+	while (flush_message_queue()) {
+		if (host_state.exit_requested)
+			host_state.exit_confirmed.signal();
+
+		if (host_state.size_invalidated)
+			resize(*swap_chain);
+
+		for (const auto& event : host_state.input_events.get_current_events()) {
+			if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
+				host_state.exit_requested.signal();
 		}
 
-		matrix::present(*swap_chain);
+		present(*swap_chain);
 		winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
 		while (frame_fence->GetCompletedValue() < frame_fence_value)
 			_mm_pause();
