@@ -19,12 +19,17 @@ namespace matrix {
 
 		class event {
 		public:
-			event() noexcept : m_not_signalled {} { m_not_signalled.test_and_set(); }
-			void signal() noexcept { m_not_signalled.clear(); }
-			operator bool() noexcept { return !m_not_signalled.test_and_set(); }
+			void signal() noexcept { m_signalled = true; }
+
+			operator bool() noexcept
+			{
+				const auto current_state = m_signalled;
+				m_signalled = false;
+				return current_state;
+			}
 
 		private:
-			std::atomic_flag m_not_signalled;
+			bool m_signalled {};
 		};
 
 		enum class input_event_type { key_pressed, key_released };
@@ -33,20 +38,6 @@ namespace matrix {
 			input_event_type type;
 			WPARAM w;
 			LPARAM l;
-		};
-
-		class spinlock {
-		public:
-			void lock() noexcept
-			{
-				while (m_locked.test_and_set(std::memory_order_acquire))
-					_mm_pause();
-			}
-
-			void unlock() noexcept { m_locked.clear(); }
-
-		private:
-			std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
 		};
 
 		struct throwing_default {
@@ -59,27 +50,21 @@ namespace matrix {
 			input_event_queue(throwing_default) :
 				m_event_buffers {},
 				m_current_buffer_for_source {&m_event_buffers.front()},
-				m_current_buffer_for_sink {&m_event_buffers.back()},
-				m_swap_mutex {}
+				m_current_buffer_for_sink {&m_event_buffers.back()}
 			{
 				m_current_buffer_for_source->reserve(initial_capacity);
 				m_current_buffer_for_sink->reserve(initial_capacity);
 			}
 
 			// The returned span of input events will be invalidated upon the next call
-			gsl::span<const input_event> swap_buffers()
+			gsl::span<const input_event> get_current_events()
 			{
-				const std::lock_guard swap_lock {m_swap_mutex};
 				std::swap(m_current_buffer_for_source, m_current_buffer_for_sink);
 				m_current_buffer_for_source->clear();
 				return {*m_current_buffer_for_sink};
 			}
 
-			void enqueue(const input_event& event)
-			{
-				const std::lock_guard swap_lock {m_swap_mutex};
-				m_current_buffer_for_source->emplace_back(event);
-			}
+			void enqueue(const input_event& event) { m_current_buffer_for_source->emplace_back(event); }
 
 		private:
 			static constexpr auto initial_capacity = 1024;
@@ -87,7 +72,6 @@ namespace matrix {
 			std::array<std::vector<input_event>, 2> m_event_buffers;
 			gsl::not_null<std::vector<input_event>*> m_current_buffer_for_source;
 			gsl::not_null<std::vector<input_event>*> m_current_buffer_for_sink;
-			spinlock m_swap_mutex;
 		};
 
 		struct host_window_client_data {
@@ -222,27 +206,6 @@ namespace matrix {
 			return winrt::capture<ID3D12Fence>(
 				&device, &ID3D12Device::CreateFence, initial_value, D3D12_FENCE_FLAG_NONE);
 		}
-
-		void do_client_thread(HWND host_window, host_window_client_data& client_data)
-		{
-			const auto dxgi_factory = create_dxgi_factory();
-			const auto device = create_gpu_device(*dxgi_factory);
-			const auto command_queue = create_command_queue(*device);
-			const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
-			std::uint64_t frame_fence_value {};
-			const auto frame_fence = create_fence(*device, frame_fence_value);
-			while (!client_data.exit_requested) {
-				for (const auto& event : client_data.input_events.swap_buffers()) {
-					if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
-						client_data.exit_requested.signal();
-				}
-
-				present(*swap_chain);
-				winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
-				while (frame_fence->GetCompletedValue() < frame_fence_value)
-					_mm_pause();
-			}
-		}
 	}
 }
 
@@ -261,7 +224,7 @@ int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 		if (client_data.exit_requested)
 			ui_state.exit_confirmed.signal();
 
-		for (const auto& event : client_data.input_events.swap_buffers()) {
+		for (const auto& event : client_data.input_events.get_current_events()) {
 			if (event.type == matrix::input_event_type::key_pressed && event.w == VK_ESCAPE)
 				client_data.exit_requested.signal();
 		}
