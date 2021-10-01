@@ -56,7 +56,7 @@ namespace matrix {
 			bool size_invalidated;
 		};
 
-		void reset(host_client_data& client_data)
+		void reset(host_client_data& client_data) noexcept
 		{
 			client_data.input_events.clear();
 			client_data.exit_requested = false;
