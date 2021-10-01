@@ -119,8 +119,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="graphics_engine_state.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
+    <ClCompile Include="graphics_engine_state.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
