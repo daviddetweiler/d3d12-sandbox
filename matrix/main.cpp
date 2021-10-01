@@ -48,52 +48,65 @@ namespace matrix {
 			std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
 		};
 
-		struct throwing_default {
+		struct host_client_data {
+			std::vector<input_event> input_events;
+			bool exit_requested;
+			bool size_invalidated;
 		};
 
-		class input_event_queue {
-			class temporary_range;
+		void reset(host_client_data& client_data)
+		{
+			client_data.input_events.clear();
+			client_data.exit_requested = false;
+			client_data.size_invalidated = false;
+		}
 
+		class host_atomic_state {
 		public:
-			input_event_queue(throwing_default) :
-				m_event_buffers {},
-				m_current_buffer_for_source {&m_event_buffers.front()},
-				m_current_buffer_for_sink {&m_event_buffers.back()},
-				m_swap_mutex {}
+			host_atomic_state() noexcept :
+				m_client_data {},
+				m_for_host {&m_client_data.front()},
+				m_for_client {&m_client_data.back()},
+				m_swap_lock {}
 			{
-				m_current_buffer_for_source->reserve(initial_capacity);
-				m_current_buffer_for_sink->reserve(initial_capacity);
 			}
 
-			// The returned span of input events will be invalidated upon the next call
-			gsl::span<const input_event> swap_buffers()
+			const auto& swap_buffers()
 			{
-				const std::lock_guard swap_lock {m_swap_mutex};
-				std::swap(m_current_buffer_for_source, m_current_buffer_for_sink);
-				m_current_buffer_for_source->clear();
-				return {*m_current_buffer_for_sink};
+				const std::lock_guard lock {m_swap_lock};
+				std::swap(m_for_host, m_for_client);
+				reset(*m_for_host);
+				return *m_for_client;
 			}
 
 			void enqueue(const input_event& event)
 			{
-				const std::lock_guard swap_lock {m_swap_mutex};
-				m_current_buffer_for_source->emplace_back(event);
+				const std::lock_guard swap_lock {m_swap_lock};
+				m_for_host->input_events.emplace_back(event);
+			}
+
+			void request_exit()
+			{
+				const std::lock_guard swap_lock {m_swap_lock};
+				m_for_host->exit_requested = true;
+			}
+
+			void invalidate_size()
+			{
+				const std::lock_guard swap_lock {m_swap_lock};
+				m_for_host->size_invalidated = true;
 			}
 
 		private:
-			static constexpr auto initial_capacity = 1024;
-
-			std::array<std::vector<input_event>, 2> m_event_buffers;
-			gsl::not_null<std::vector<input_event>*> m_current_buffer_for_source;
-			gsl::not_null<std::vector<input_event>*> m_current_buffer_for_sink;
-			spinlock m_swap_mutex;
+			std::array<host_client_data, 2> m_client_data;
+			gsl::not_null<host_client_data*> m_for_host;
+			gsl::not_null<host_client_data*> m_for_client;
+			spinlock m_swap_lock;
 		};
 
 		struct host_window_state {
 			event exit_confirmed;
-			event exit_requested {};
-			event size_invalidated {};
-			input_event_queue input_events {throwing_default {}};
+			host_atomic_state client_data;
 		};
 
 		GSL_SUPPRESS(type .1)
@@ -101,12 +114,13 @@ namespace matrix {
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null state = reinterpret_cast<host_window_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
+			auto& client_data = state->client_data;
 			if (state->exit_confirmed)
 				winrt::check_bool(DestroyWindow(window));
 
 			switch (message) {
 			case WM_CLOSE:
-				state->exit_requested.signal();
+				client_data.request_exit();
 				return 0;
 
 			case WM_SYSCOMMAND:
@@ -122,15 +136,15 @@ namespace matrix {
 				return 0;
 
 			case WM_SIZE:
-				state->size_invalidated.signal();
+				client_data.invalidate_size();
 				return 0;
 
 			case WM_KEYUP:
-				state->input_events.enqueue({input_event_type::key_released, w, l});
+				client_data.enqueue({input_event_type::key_released, w, l});
 				return 0;
 
 			case WM_KEYDOWN:
-				state->input_events.enqueue({input_event_type::key_pressed, w, l});
+				client_data.enqueue({input_event_type::key_pressed, w, l});
 				return 0;
 
 			case WM_DESTROY:
@@ -238,22 +252,25 @@ namespace matrix {
 			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
 		}
 
-		void do_client_thread(HWND host_window, host_window_state& client_data)
+		void do_client_thread(HWND host_window, host_window_state& host_state)
 		{
+			auto& client_data = host_state.client_data;
 			const auto dxgi_factory = create_dxgi_factory();
 			const auto device = create_gpu_device(*dxgi_factory);
 			const auto command_queue = create_command_queue(*device);
 			const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
 			std::uint64_t frame_fence_value {};
 			const auto frame_fence = create_fence(*device, frame_fence_value);
-			while (!client_data.exit_requested) {
-				for (const auto& event : client_data.input_events.swap_buffers()) {
-					if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
-						client_data.exit_requested.signal();
-				}
+			while (true) {
+				const auto& current_state = client_data.swap_buffers();
+				if (current_state.exit_requested)
+					break;
 
-				if (client_data.size_invalidated)
+				if (current_state.size_invalidated)
 					resize(*swap_chain);
+
+				if (!current_state.input_events.empty())
+					OutputDebugStringW(L"[note] input events available\n");
 
 				present(*swap_chain);
 				winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
