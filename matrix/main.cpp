@@ -109,6 +109,18 @@ namespace matrix {
 				state->exit_requested.signal();
 				return 0;
 
+			case WM_SYSCOMMAND:
+				OutputDebugStringW(L"[note] system command issued\n");
+				return DefWindowProc(window, message, w, l);
+
+			case WM_ENTERSIZEMOVE:
+				OutputDebugStringW(L"[note] entered sizing loop\n");
+				return 0;
+
+			case WM_EXITSIZEMOVE:
+				OutputDebugStringW(L"[note] exited sizing loop\n");
+				return 0;
+
 			case WM_SIZE:
 				state->size_invalidated.signal();
 				return 0;
