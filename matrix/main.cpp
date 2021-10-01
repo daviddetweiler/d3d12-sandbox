@@ -206,17 +206,6 @@ namespace matrix {
 		{
 			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
 		}
-
-		BOOL hide_cursor_if_fullscreen(IDXGISwapChain& swap_chain, BOOL previous_state)
-		{
-			BOOL is_fullscreen {};
-			winrt::com_ptr<IDXGIOutput> current_output {};
-			winrt::check_hresult(swap_chain.GetFullscreenState(&is_fullscreen, current_output.put()));
-			if (is_fullscreen != previous_state)
-				ShowCursor(!is_fullscreen);
-
-			return is_fullscreen;
-		}
 	}
 }
 
@@ -232,14 +221,16 @@ int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 	const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
 	std::uint64_t frame_fence_value {};
 	const auto frame_fence = create_fence(*device, frame_fence_value);
-	BOOL is_fullscreen {};
 	while (flush_message_queue()) {
 		if (host_state.exit_requested)
 			host_state.exit_confirmed.signal();
 
-		if (host_state.size_invalidated) {
+		if (host_state.size_invalidated)
 			resize(*swap_chain);
-			is_fullscreen = hide_cursor_if_fullscreen(*swap_chain, is_fullscreen);
+
+		for (const auto& event : host_state.input_events.get_current_events()) {
+			if (event.type == input_event_type::key_pressed && event.w == VK_ESCAPE)
+				host_state.exit_requested.signal();
 		}
 
 		present(*swap_chain);
