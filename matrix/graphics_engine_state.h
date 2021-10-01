@@ -4,8 +4,10 @@
 
 namespace matrix {
 	struct per_frame_resources {
-		D3D12_CPU_DESCRIPTOR_HANDLE render_target_view_handle;
-		winrt::com_ptr<ID3D12Resource> swap_chain_buffer;
+		D3D12_CPU_DESCRIPTOR_HANDLE render_target_view_handle {};
+		winrt::com_ptr<ID3D12Resource> swap_chain_buffer {};
+		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
+		winrt::com_ptr<ID3D12GraphicsCommandList> commands {};
 	};
 
 	class graphics_engine_state {
@@ -14,13 +16,19 @@ namespace matrix {
 		void update();
 		void signal_size_change();
 
+		GSL_SUPPRESS(f .6)
+		~graphics_engine_state() noexcept;
+
+		graphics_engine_state(const graphics_engine_state&) = delete;
+		graphics_engine_state& operator=(const graphics_engine_state&) = delete;
+		graphics_engine_state(const graphics_engine_state&&) = delete;
+		graphics_engine_state& operator=(const graphics_engine_state&&) = delete;
+
 	private:
 		const winrt::com_ptr<ID3D12Device4> m_device;
 		const winrt::com_ptr<ID3D12CommandQueue> m_queue;
 		const winrt::com_ptr<IDXGISwapChain3> m_swap_chain;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_rtv_heap;
-		const winrt::com_ptr<ID3D12CommandAllocator> m_allocator;
-		const winrt::com_ptr<ID3D12GraphicsCommandList> m_command_list;
 
 		std::array<per_frame_resources, 2> m_frame_resources;
 
@@ -28,5 +36,9 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12Fence> m_fence;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
+
+		void wait_for_idle();
+		const per_frame_resources& wait_for_backbuffer();
+		void signal_frame_submission();
 	};
 }
