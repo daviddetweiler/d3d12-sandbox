@@ -191,6 +191,9 @@ namespace matrix {
 			winrt::check_hresult(factory.CreateSwapChainForHwnd(
 				&presenter_queue, target_window, &description, nullptr, nullptr, swap_chain.put()));
 
+			// We do not currently support exclusive-mode fullscreen
+			winrt::check_hresult(factory.MakeWindowAssociation(target_window, DXGI_MWA_NO_ALT_ENTER));
+
 			return swap_chain;
 		}
 
@@ -204,6 +207,7 @@ namespace matrix {
 
 		void resize(IDXGISwapChain& swap_chain)
 		{
+			OutputDebugStringW(L"[note] resize triggered\n");
 			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
 		}
 	}
