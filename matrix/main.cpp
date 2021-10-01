@@ -2,19 +2,18 @@
 
 namespace matrix {
 	namespace {
-		// Returns false once the quit message has been posted
-		bool flush_message_queue() noexcept
+		int handle_messages_until_quit()
 		{
 			MSG next_message {};
-			while (PeekMessageW(&next_message, nullptr, 0, 0, PM_REMOVE)) {
-				if (next_message.message == WM_QUIT)
-					return false;
+			while (const auto status_code = GetMessageW(&next_message, nullptr, 0, 0)) {
+				if (status_code == -1)
+					winrt::throw_last_error();
 
 				TranslateMessage(&next_message);
 				DispatchMessageW(&next_message);
 			}
 
-			return true;
+			return gsl::narrow<int>(next_message.wParam);
 		}
 
 		class event {
@@ -221,6 +220,12 @@ namespace matrix {
 				&device, &ID3D12Device::CreateFence, initial_value, D3D12_FENCE_FLAG_NONE);
 		}
 
+		void resize(IDXGISwapChain& swap_chain)
+		{
+			OutputDebugStringW(L"[note] resize triggered\n");
+			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
+		}
+
 		void do_client_thread(HWND host_window, host_window_state& client_data)
 		{
 			const auto dxgi_factory = create_dxgi_factory();
@@ -235,50 +240,26 @@ namespace matrix {
 						client_data.exit_requested.signal();
 				}
 
+				if (client_data.size_invalidated)
+					resize(*swap_chain);
+
 				present(*swap_chain);
 				winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
 				while (frame_fence->GetCompletedValue() < frame_fence_value)
 					_mm_pause();
 			}
 		}
-
-		void resize(IDXGISwapChain& swap_chain)
-		{
-			OutputDebugStringW(L"[note] resize triggered\n");
-			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
-		}
 	}
 }
 
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
-	using namespace matrix;
+	matrix::host_window_state ui_state {};
+	const auto host_window = matrix::create_host_window(instance, ui_state);
+	const std::jthread client_thread {[&ui_state, host_window]() {
+		matrix::do_client_thread(host_window, ui_state);
+		ui_state.exit_confirmed.signal();
+	}};
 
-	host_window_state host_state {};
-	const auto host_window = create_host_window(instance, host_state);
-	const auto dxgi_factory = create_dxgi_factory();
-	const auto device = create_gpu_device(*dxgi_factory);
-	const auto command_queue = create_command_queue(*device);
-	const auto swap_chain = create_swap_chain(*dxgi_factory, *command_queue, host_window);
-	std::uint64_t frame_fence_value {};
-	const auto frame_fence = create_fence(*device, frame_fence_value);
-	while (flush_message_queue()) {
-		if (host_state.exit_requested)
-			host_state.exit_confirmed.signal();
-
-		if (host_state.size_invalidated)
-			resize(*swap_chain);
-
-		for (const auto& event : host_state.input_events.swap_buffers()) {
-			if (event.type == matrix::input_event_type::key_pressed && event.w == VK_ESCAPE)
-				host_state.exit_requested.signal();
-		}
-
-		present(*swap_chain);
-		winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
-		while (frame_fence->GetCompletedValue() < frame_fence_value)
-			_mm_pause();
-	}
-
-	return 0;
+	return matrix::handle_messages_until_quit();
 }

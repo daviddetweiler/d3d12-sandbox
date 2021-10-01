@@ -17,3 +17,5 @@ resources are freed. Were we to regularly create and destroy classes / windows, 
 
 Unfortunately, we cannot easily do an asynchronous resize! At least not on separate threads. The reason is that there is a race during the fullscreen transition: the transition could occur
 between the check of the `size_dirtied` event, and the call to `present()`.
+
+It appears that we cannot defer handling of the `WM_SIZE` message; these are sent as part of a modal loop, and frame processing will block until it has finished.
