@@ -14,3 +14,6 @@ is required (usually after the rest of the engine shuts down).
 
 Note that we have no need for cleaning up after ourselves with the window handle or window class. These are resources created by the main thread, and when this exits, the process exits and the
 resources are freed. Were we to regularly create and destroy classes / windows, then owning handles would be needed.
+
+Unfortunately, we cannot easily do an asynchronous resize! At least not on separate threads. The reason is that there is a race during the fullscreen transition: the transition could occur
+between the check of the `size_dirtied` event, and the call to `present()`.

@@ -2,18 +2,19 @@
 
 namespace matrix {
 	namespace {
-		int handle_messages_until_quit()
+		// Returns false once the quit message has been posted
+		bool flush_message_queue() noexcept
 		{
 			MSG next_message {};
-			while (const auto status_code = GetMessageW(&next_message, nullptr, 0, 0)) {
-				if (status_code == -1)
-					winrt::throw_last_error();
+			while (PeekMessageW(&next_message, nullptr, 0, 0, PM_REMOVE)) {
+				if (next_message.message == WM_QUIT)
+					return false;
 
 				TranslateMessage(&next_message);
 				DispatchMessageW(&next_message);
 			}
 
-			return gsl::narrow<int>(next_message.wParam);
+			return true;
 		}
 
 		class event {
@@ -248,11 +249,28 @@ namespace matrix {
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
 	matrix::host_window_state ui_state {};
+	auto& client_data = ui_state.client_data;
 	const auto host_window = matrix::create_host_window(instance, ui_state);
-	const std::jthread client_thread {[&ui_state, host_window]() {
-		matrix::do_client_thread(host_window, ui_state.client_data);
-		ui_state.exit_confirmed.signal();
-	}};
+	const auto dxgi_factory = matrix::create_dxgi_factory();
+	const auto device = matrix::create_gpu_device(*dxgi_factory);
+	const auto command_queue = matrix::create_command_queue(*device);
+	const auto swap_chain = matrix::create_swap_chain(*dxgi_factory, *command_queue, host_window);
+	std::uint64_t frame_fence_value {};
+	const auto frame_fence = matrix::create_fence(*device, frame_fence_value);
+	while (matrix::flush_message_queue()) {
+		if (client_data.exit_requested)
+			ui_state.exit_confirmed.signal();
 
-	return matrix::handle_messages_until_quit();
+		for (const auto& event : client_data.input_events.swap_buffers()) {
+			if (event.type == matrix::input_event_type::key_pressed && event.w == VK_ESCAPE)
+				client_data.exit_requested.signal();
+		}
+
+		matrix::present(*swap_chain);
+		winrt::check_hresult(command_queue->Signal(frame_fence.get(), ++frame_fence_value));
+		while (frame_fence->GetCompletedValue() < frame_fence_value)
+			_mm_pause();
+	}
+
+	return 0;
 }
