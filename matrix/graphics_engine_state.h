@@ -38,7 +38,7 @@ namespace matrix {
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
 
 		void wait_for_idle();
-		const per_frame_resources& wait_for_backbuffer();
+		const per_frame_resources& wait_for_frame();
 		void signal_frame_submission();
 	};
 }

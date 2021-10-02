@@ -112,6 +112,25 @@ namespace matrix {
 			const auto list_pointer = &command_list;
 			queue.ExecuteCommandLists(1, &list_pointer);
 		}
+
+		template <typename... barrier_types>
+		void insert_barriers(ID3D12GraphicsCommandList& command_list, barrier_types... barriers)
+		{
+			const std::array<D3D12_RESOURCE_BARRIER, sizeof...(barrier_types)> all_barriers {barriers...};
+			command_list.ResourceBarrier(gsl::narrow<UINT>(all_barriers.size()), all_barriers.data());
+		}
+
+		void clear_render_target(
+			ID3D12GraphicsCommandList& command_list,
+			D3D12_CPU_DESCRIPTOR_HANDLE view_handle,
+			float red,
+			float green,
+			float blue,
+			float alpha = 1.0f)
+		{
+			const std::array color {red, green, blue, alpha};
+			command_list.ClearRenderTargetView(view_handle, color.data(), 0, nullptr);
+		}
 	}
 }
 
@@ -132,31 +151,21 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 }
 
 GSL_SUPPRESS(f .6)
-matrix::graphics_engine_state::~graphics_engine_state() noexcept
-{
-	while (m_fence->GetCompletedValue() < m_fence_current_value)
-		_mm_pause();
-}
+matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
 void matrix::graphics_engine_state::update()
 {
-	const auto& [view_handle, buffer, allocator, commands] = wait_for_backbuffer();
+	const auto& [view_handle, buffer, allocator, commands] = wait_for_frame();
 
 	winrt::check_hresult(allocator->Reset());
 	winrt::check_hresult(commands->Reset(allocator.get(), nullptr));
 
-	const auto render_state_barrier
-		= create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	insert_barriers(
+		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	commands->ResourceBarrier(1, &render_state_barrier);
-
-	std::array<float, 4> background_color {0.098f, 0.098f, 0.439f, 1.0f};
-	commands->ClearRenderTargetView(view_handle, background_color.data(), 0, nullptr);
-
-	const auto presentation_state_barrier
-		= create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON);
-
-	commands->ResourceBarrier(1, &presentation_state_barrier);
+	clear_render_target(*commands, view_handle, 0.0f, 10.0f / 255.0f, 26.0f / 255.0f);
+	insert_barriers(
+		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 
 	winrt::check_hresult(commands->Close());
 
@@ -167,9 +176,7 @@ void matrix::graphics_engine_state::update()
 
 void matrix::graphics_engine_state::signal_size_change()
 {
-	while (m_fence->GetCompletedValue() < m_fence_current_value)
-		_mm_pause();
-
+	wait_for_idle();
 	m_frame_resources = {};
 	resize(*m_swap_chain);
 	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain);
@@ -181,7 +188,7 @@ void matrix::graphics_engine_state::wait_for_idle()
 		_mm_pause();
 }
 
-const matrix::per_frame_resources& matrix::graphics_engine_state::wait_for_backbuffer()
+const matrix::per_frame_resources& matrix::graphics_engine_state::wait_for_frame()
 {
 	while (m_fence->GetCompletedValue() < m_fence_current_value - 1)
 		_mm_pause();
