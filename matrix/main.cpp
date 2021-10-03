@@ -18,16 +18,6 @@ namespace matrix {
 			return gsl::narrow<int>(next_message.wParam);
 		}
 
-		class event {
-		public:
-			event() noexcept : m_not_signalled {} { m_not_signalled.test_and_set(); }
-			void signal() noexcept { m_not_signalled.clear(); }
-			operator bool() noexcept { return !m_not_signalled.test_and_set(); }
-
-		private:
-			std::atomic_flag m_not_signalled;
-		};
-
 		enum class input_event_type { key_pressed, key_released };
 
 		struct input_event {
@@ -106,51 +96,43 @@ namespace matrix {
 			spinlock m_swap_lock;
 		};
 
-		struct host_window_state {
-			event exit_confirmed;
-			host_atomic_state client_data;
-		};
+		constexpr DWORD confirm_exit {WM_USER};
+		constexpr DWORD client_ready {WM_USER + 1};
 
 		GSL_SUPPRESS(type .1)
 		GSL_SUPPRESS(f .6)
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
-			const gsl::not_null state = reinterpret_cast<host_window_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
-			auto& client_data = state->client_data;
-			if (state->exit_confirmed)
-				winrt::check_bool(DestroyWindow(window));
+			const gsl::not_null client_data
+				= reinterpret_cast<host_atomic_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
 
 			switch (message) {
 			case WM_CLOSE:
-				client_data.request_exit();
-				return 0;
-
-			case WM_SYSCOMMAND:
-				OutputDebugStringW(L"[note] system command issued\n");
-				return DefWindowProc(window, message, w, l);
-
-			case WM_ENTERSIZEMOVE:
-				OutputDebugStringW(L"[note] entered sizing loop\n");
-				return 0;
-
-			case WM_EXITSIZEMOVE:
-				OutputDebugStringW(L"[note] exited sizing loop\n");
+				client_data->request_exit();
 				return 0;
 
 			case WM_SIZE:
-				client_data.invalidate_size();
+				client_data->invalidate_size();
 				return 0;
 
 			case WM_KEYUP:
-				client_data.enqueue({input_event_type::key_released, w, l});
+				client_data->enqueue({input_event_type::key_released, w, l});
 				return 0;
 
 			case WM_KEYDOWN:
-				client_data.enqueue({input_event_type::key_pressed, w, l});
+				client_data->enqueue({input_event_type::key_pressed, w, l});
 				return 0;
 
 			case WM_DESTROY:
 				PostQuitMessage(0);
+				return 0;
+
+			case client_ready:
+				ShowWindow(window, SW_SHOW);
+				return 0;
+
+			case confirm_exit:
+				winrt::check_bool(DestroyWindow(window));
 				return 0;
 
 			default:
@@ -174,7 +156,7 @@ namespace matrix {
 			}
 		}
 
-		HWND create_host_window(HINSTANCE instance, host_window_state& state)
+		HWND create_host_window(HINSTANCE instance, host_atomic_state& state)
 		{
 			WNDCLASSEXW window_class {};
 			window_class.cbSize = sizeof(window_class);
@@ -188,7 +170,7 @@ namespace matrix {
 				WS_EX_APPWINDOW | WS_EX_NOREDIRECTIONBITMAP,
 				window_class.lpszClassName,
 				L"",
-				WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+				WS_OVERLAPPEDWINDOW,
 				CW_USEDEFAULT,
 				CW_USEDEFAULT,
 				CW_USEDEFAULT,
@@ -201,6 +183,7 @@ namespace matrix {
 
 		void do_client_thread(HWND host_window, host_atomic_state& client_data)
 		{
+			bool is_first_frame {true};
 			graphics_engine_state graphics_state {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();
@@ -214,6 +197,11 @@ namespace matrix {
 					OutputDebugStringW(L"[note] input events available\n");
 
 				graphics_state.update();
+
+				if (is_first_frame) {
+					SendMessageW(host_window, client_ready, 0, 0);
+					is_first_frame = false;
+				}
 			}
 		}
 	}
@@ -221,11 +209,11 @@ namespace matrix {
 
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
-	matrix::host_window_state ui_state {};
+	matrix::host_atomic_state ui_state {};
 	const auto host_window = matrix::create_host_window(instance, ui_state);
 	const std::jthread client_thread {[&ui_state, host_window]() {
-		matrix::do_client_thread(host_window, ui_state.client_data);
-		ui_state.exit_confirmed.signal();
+		matrix::do_client_thread(host_window, ui_state);
+		SendMessageW(host_window, matrix::confirm_exit, 0, 0);
 	}};
 
 	return matrix::handle_messages_until_quit();
