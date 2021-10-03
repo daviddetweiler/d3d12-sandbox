@@ -107,14 +107,15 @@ namespace matrix {
 			return transition_barrier;
 		}
 
-		void submit_one(ID3D12CommandQueue& queue, ID3D12CommandList& command_list)
+		template <typename... list_types>
+		void execute_command_lists(ID3D12CommandQueue& queue, list_types&... command_lists)
 		{
-			const auto list_pointer = &command_list;
-			queue.ExecuteCommandLists(1, &list_pointer);
+			std::array<ID3D12CommandList*, sizeof...(command_lists)> list_pointers {&command_lists...};
+			queue.ExecuteCommandLists(gsl::narrow<UINT>(list_pointers.size()), list_pointers.data());
 		}
 
 		template <typename... barrier_types>
-		void insert_barriers(ID3D12GraphicsCommandList& command_list, barrier_types... barriers)
+		void submit_resource_barriers(ID3D12GraphicsCommandList& command_list, barrier_types... barriers)
 		{
 			const std::array<D3D12_RESOURCE_BARRIER, sizeof...(barrier_types)> all_barriers {barriers...};
 			command_list.ResourceBarrier(gsl::narrow<UINT>(all_barriers.size()), all_barriers.data());
@@ -160,16 +161,16 @@ void matrix::graphics_engine_state::update()
 	winrt::check_hresult(allocator->Reset());
 	winrt::check_hresult(commands->Reset(allocator.get(), nullptr));
 
-	insert_barriers(
+	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	clear_render_target(*commands, view_handle, 0.0f, 10.0f / 255.0f, 26.0f / 255.0f);
-	insert_barriers(
+	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 
 	winrt::check_hresult(commands->Close());
 
-	submit_one(*m_queue, *commands);
+	execute_command_lists(*m_queue, *commands);
 	present(*m_swap_chain);
 	signal_frame_submission();
 }
