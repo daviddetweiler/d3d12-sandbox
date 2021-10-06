@@ -302,7 +302,7 @@ void matrix::graphics_engine_state::update()
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	clear_render_target(*commands, view_handle, 0.0f, 10.0f / 255.0f, 26.0f / 255.0f);
-	commands->DrawInstanced(3, 1, 0, 0);
+	commands->DrawInstanced(6, 1, 0, 0);
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 
