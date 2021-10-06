@@ -157,7 +157,7 @@ namespace matrix {
 			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			info.NumRenderTargets = 1;
-			info.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			info.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 			info.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 			info.SampleDesc.Count = 1;
 
@@ -191,6 +191,23 @@ namespace matrix {
 			return winrt::capture<ID3D12RootSignature>(
 				&device, &ID3D12Device::CreateRootSignature, 0, result->GetBufferPointer(), result->GetBufferSize());
 		}
+
+		void maximize_rasterizer(ID3D12GraphicsCommandList& list, ID3D12Resource& target)
+		{
+			const auto info = target.GetDesc();
+
+			D3D12_RECT scissor {};
+			scissor.right = gsl::narrow_cast<long>(info.Width);
+			scissor.bottom = gsl::narrow_cast<long>(info.Height);
+
+			D3D12_VIEWPORT viewport {};
+			viewport.Width = gsl::narrow_cast<float>(info.Width);
+			viewport.Height = gsl::narrow_cast<float>(info.Height);
+			viewport.MaxDepth = 1.0f;
+
+			list.RSSetScissorRects(1, &scissor);
+			list.RSSetViewports(1, &viewport);
+		}
 	}
 }
 
@@ -223,11 +240,15 @@ void matrix::graphics_engine_state::update()
 	winrt::check_hresult(commands->Reset(allocator.get(), m_pipeline_state.get()));
 
 	commands->SetGraphicsRootSignature(m_root_signature.get());
+	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	maximize_rasterizer(*commands, *buffer);
+	commands->OMSetRenderTargets(1, &view_handle, false, nullptr);
 
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	clear_render_target(*commands, view_handle, 0.0f, 10.0f / 255.0f, 26.0f / 255.0f);
+	commands->DrawInstanced(3, 1, 0, 0);
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 
