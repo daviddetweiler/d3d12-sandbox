@@ -2,6 +2,8 @@
 
 #include <array>
 #include <atomic>
+#include <filesystem>
+#include <fstream>
 #include <mutex>
 #include <thread>
 #include <vector>

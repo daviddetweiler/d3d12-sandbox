@@ -2,6 +2,8 @@
 
 #include "graphics_engine_state.h"
 
+#include "shader_loading.h"
+
 namespace matrix {
 	namespace {
 		auto create_dxgi_factory()
@@ -132,6 +134,63 @@ namespace matrix {
 			const std::array color {red, green, blue, alpha};
 			command_list.ClearRenderTargetView(view_handle, color.data(), 0, nullptr);
 		}
+
+		auto create_default_pipeline_state(ID3D12Device& device, ID3D12RootSignature& root_signature)
+		{
+			const auto vertex_shader = load_compiled_shader(L"vertex.cso");
+			const auto pixel_shader = load_compiled_shader(L"pixel.cso");
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC info {};
+			info.pRootSignature = &root_signature;
+			info.VS.BytecodeLength = vertex_shader.size();
+			info.VS.pShaderBytecode = vertex_shader.data();
+			info.PS.BytecodeLength = pixel_shader.size();
+			info.PS.pShaderBytecode = pixel_shader.data();
+			info.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+			info.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			info.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+			info.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+			info.RasterizerState.DepthClipEnable = true;
+			// info.RasterizerState.FrontCounterClockwise = true;
+			// info.DepthStencilState.DepthEnable = true;
+			info.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			info.NumRenderTargets = 1;
+			info.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			info.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+			info.SampleDesc.Count = 1;
+
+			/*D3D12_INPUT_ELEMENT_DESC position {};
+			position.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+			position.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+			position.SemanticName = "POSITION";
+
+			info.InputLayout.NumElements = 1;
+			info.InputLayout.pInputElementDescs = &position;*/
+
+			return winrt::capture<ID3D12PipelineState>(&device, &ID3D12Device::CreateGraphicsPipelineState, &info);
+		}
+
+		auto create_root_signature(ID3D12Device& device)
+		{
+			/*D3D12_ROOT_PARAMETER constants {};
+			constants.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+			constants.Constants.Num32BitValues = 4 * 4 * 2;*/
+
+			D3D12_ROOT_SIGNATURE_DESC info {};
+			info.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+			/*info.NumParameters = 1;
+			info.pParameters = &constants;*/
+
+			winrt::com_ptr<ID3DBlob> result {};
+			winrt::com_ptr<ID3DBlob> error {};
+			winrt::check_hresult(
+				D3D12SerializeRootSignature(&info, D3D_ROOT_SIGNATURE_VERSION_1, result.put(), error.put()));
+
+			return winrt::capture<ID3D12RootSignature>(
+				&device, &ID3D12Device::CreateRootSignature, 0, result->GetBufferPointer(), result->GetBufferSize());
+		}
 	}
 }
 
@@ -145,6 +204,8 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
+	m_root_signature {create_root_signature(*m_device)},
+	m_pipeline_state {create_default_pipeline_state(*m_device, *m_root_signature)},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)}
@@ -159,7 +220,9 @@ void matrix::graphics_engine_state::update()
 	const auto& [view_handle, buffer, allocator, commands] = wait_for_frame();
 
 	winrt::check_hresult(allocator->Reset());
-	winrt::check_hresult(commands->Reset(allocator.get(), nullptr));
+	winrt::check_hresult(commands->Reset(allocator.get(), m_pipeline_state.get()));
+
+	commands->SetGraphicsRootSignature(m_root_signature.get());
 
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));

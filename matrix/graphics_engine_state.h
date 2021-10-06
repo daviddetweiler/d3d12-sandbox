@@ -29,6 +29,8 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12CommandQueue> m_queue;
 		const winrt::com_ptr<IDXGISwapChain3> m_swap_chain;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_rtv_heap;
+		const winrt::com_ptr<ID3D12RootSignature> m_root_signature;
+		const winrt::com_ptr<ID3D12PipelineState> m_pipeline_state;
 
 		std::array<per_frame_resources, 2> m_frame_resources;
 
