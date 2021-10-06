@@ -152,7 +152,7 @@ namespace matrix {
 			info.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 			info.RasterizerState.DepthClipEnable = true;
 			// info.RasterizerState.FrontCounterClockwise = true;
-			// info.DepthStencilState.DepthEnable = true;
+			info.DepthStencilState.DepthEnable = true;
 			info.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
@@ -208,6 +208,54 @@ namespace matrix {
 			list.RSSetScissorRects(1, &scissor);
 			list.RSSetViewports(1, &viewport);
 		}
+
+		struct extent2d {
+			UINT width;
+			UINT height;
+		};
+
+		extent2d get_extent(IDXGISwapChain& swap_chain)
+		{
+			DXGI_SWAP_CHAIN_DESC description {};
+			winrt::check_hresult(swap_chain.GetDesc(&description));
+			return {description.BufferDesc.Width, description.BufferDesc.Height};
+		}
+
+		auto create_depth_buffer(ID3D12Device& device, D3D12_CPU_DESCRIPTOR_HANDLE dsv, const extent2d& size)
+		{
+			D3D12_HEAP_PROPERTIES properties {};
+			properties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+			D3D12_RESOURCE_DESC info {};
+			info.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			info.DepthOrArraySize = 1;
+			info.Width = size.width;
+			info.Height = size.height;
+			info.MipLevels = 1;
+			info.SampleDesc.Count = 1;
+			info.Format = DXGI_FORMAT_D32_FLOAT;
+			info.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+			D3D12_CLEAR_VALUE clear_value {};
+			clear_value.DepthStencil.Depth = 1.0f;
+			clear_value.Format = info.Format;
+
+			const auto buffer = winrt::capture<ID3D12Resource>(
+				&device,
+				&ID3D12Device::CreateCommittedResource,
+				&properties,
+				D3D12_HEAP_FLAG_NONE,
+				&info,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				&clear_value);
+
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsv_info {};
+			dsv_info.Format = info.Format;
+			dsv_info.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			device.CreateDepthStencilView(buffer.get(), &dsv_info, dsv);
+
+			return buffer;
+		}
 	}
 }
 
@@ -221,8 +269,11 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
+	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
 	m_root_signature {create_root_signature(*m_device)},
 	m_pipeline_state {create_default_pipeline_state(*m_device, *m_root_signature)},
+	m_depth_buffer {
+		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)}
@@ -242,7 +293,10 @@ void matrix::graphics_engine_state::update()
 	commands->SetGraphicsRootSignature(m_root_signature.get());
 	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	maximize_rasterizer(*commands, *buffer);
-	commands->OMSetRenderTargets(1, &view_handle, false, nullptr);
+	const auto depth_buffer_view = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
+	commands->OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
+
+	commands->ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
