@@ -123,6 +123,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="shader_loading.cpp" />
+    <ClCompile Include="wavefront_loader.cpp" />
     <ClInclude Include="graphics_engine_state.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
@@ -132,6 +133,7 @@
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
     <ClInclude Include="shader_loading.h" />
+    <ClInclude Include="wavefront_loader.h" />
     <ResourceCompile Include="matrix.rc" />
     <Manifest Include="matrix.exe.manifest" />
     <None Include="packages.config" />
@@ -153,6 +155,11 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="cube.obj">
+      <FileType>Document</FileType>
+    </Text>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

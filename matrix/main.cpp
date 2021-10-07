@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 
 #include "graphics_engine_state.h"
+#include "wavefront_loader.h"
 
 namespace matrix {
 	namespace {
@@ -184,6 +185,8 @@ namespace matrix {
 		void do_client_thread(HWND host_window, host_atomic_state& client_data)
 		{
 			bool is_first_frame {true};
+			const auto object = load_wavefront("cube.obj");
+			static_cast<void>(object);
 			graphics_engine_state graphics_state {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();

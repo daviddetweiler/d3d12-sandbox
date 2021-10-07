@@ -27,6 +27,9 @@
     <ClInclude Include="shader_loading.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="wavefront_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -41,6 +44,9 @@
     <ClCompile Include="shader_loading.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wavefront_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="PropertySheet.props" />
@@ -48,6 +54,7 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
+    <Text Include="cube.obj" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="matrix.exe.manifest" />
