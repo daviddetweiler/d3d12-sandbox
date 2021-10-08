@@ -71,5 +71,8 @@
     <FxCompile Include="all_white.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
+    <FxCompile Include="project.hlsl">
+      <Filter>Source Files</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

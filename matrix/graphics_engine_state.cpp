@@ -140,35 +140,65 @@ namespace matrix {
 			const auto vertex_shader = load_compiled_shader(L"debug_grid.cso");
 			const auto pixel_shader = load_compiled_shader(L"all_white.cso");
 
-			D3D12_GRAPHICS_PIPELINE_STATE_DESC info {};
-			info.pRootSignature = root_signatures.default_signature.get();
-			info.VS.BytecodeLength = vertex_shader.size();
-			info.VS.pShaderBytecode = vertex_shader.data();
-			info.PS.BytecodeLength = pixel_shader.size();
-			info.PS.pShaderBytecode = pixel_shader.data();
-			info.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-			info.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-			info.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-			info.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-			info.RasterizerState.DepthClipEnable = true;
-			info.DepthStencilState.DepthEnable = true;
-			info.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-			info.NumRenderTargets = 1;
-			info.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-			info.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-			info.SampleDesc.Count = 1;
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC description {};
+			description.pRootSignature = root_signatures.default_signature.get();
+			description.VS.BytecodeLength = vertex_shader.size();
+			description.VS.pShaderBytecode = vertex_shader.data();
+			description.PS.BytecodeLength = pixel_shader.size();
+			description.PS.pShaderBytecode = pixel_shader.data();
+			description.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+			description.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			description.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+			description.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+			description.RasterizerState.DepthClipEnable = true;
+			description.DepthStencilState.DepthEnable = true;
+			description.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+			description.NumRenderTargets = 1;
+			description.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+			description.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+			description.SampleDesc.Count = 1;
 
-			/*D3D12_INPUT_ELEMENT_DESC position {};
+			return winrt::capture<ID3D12PipelineState>(
+				&device, &ID3D12Device::CreateGraphicsPipelineState, &description);
+		}
+
+		auto create_object_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
+		{
+			const auto vertex_shader = load_compiled_shader(L"project.cso");
+			const auto pixel_shader = load_compiled_shader(L"all_white.cso");
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC description {};
+			description.pRootSignature = root_signatures.default_signature.get();
+			description.VS.BytecodeLength = vertex_shader.size();
+			description.VS.pShaderBytecode = vertex_shader.data();
+			description.PS.BytecodeLength = pixel_shader.size();
+			description.PS.pShaderBytecode = pixel_shader.data();
+			description.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+			description.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			description.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+			description.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+			description.RasterizerState.DepthClipEnable = true;
+			description.DepthStencilState.DepthEnable = true;
+			description.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			description.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			description.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			description.NumRenderTargets = 1;
+			description.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+			description.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+			description.SampleDesc.Count = 1;
+
+			D3D12_INPUT_ELEMENT_DESC position {};
 			position.Format = DXGI_FORMAT_R32G32B32_FLOAT;
 			position.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 			position.SemanticName = "POSITION";
 
-			info.InputLayout.NumElements = 1;
-			info.InputLayout.pInputElementDescs = &position;*/
+			description.InputLayout.NumElements = 1;
+			description.InputLayout.pInputElementDescs = &position;
 
-			return winrt::capture<ID3D12PipelineState>(&device, &ID3D12Device::CreateGraphicsPipelineState, &info);
+			return winrt::capture<ID3D12PipelineState>(
+				&device, &ID3D12Device::CreateGraphicsPipelineState, &description);
 		}
 
 		auto create_root_signature(ID3D12Device& device)
@@ -260,6 +290,44 @@ namespace matrix {
 		{
 			return {.default_signature {create_root_signature(device)}};
 		}
+
+		pipeline_state_table create_pipeline_states(ID3D12Device& device, const root_signature_table& root_signatures)
+		{
+			return {
+				.debug_grid_pipeline {create_debug_grid_pipeline_state(device, root_signatures)},
+				.object_pipeline {create_object_pipeline_state(device, root_signatures)}};
+		}
+
+		void record_debug_grid_commands(
+			ID3D12GraphicsCommandList& commands,
+			const root_signature_table& root_signatures,
+			const per_frame_resources& resources,
+			D3D12_CPU_DESCRIPTOR_HANDLE depth_buffer_view,
+			const DirectX::XMMATRIX& view,
+			const DirectX::XMMATRIX& projection)
+		{
+			commands.SetGraphicsRootSignature(root_signatures.default_signature.get());
+			commands.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
+			commands.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
+
+			commands.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			maximize_rasterizer(commands, *resources.swap_chain_buffer);
+			commands.OMSetRenderTargets(1, &resources.render_target_view_handle, false, &depth_buffer_view);
+
+			commands.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+			submit_resource_barriers(
+				commands,
+				create_transition_barrier(
+					*resources.swap_chain_buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+			clear_render_target(commands, resources.render_target_view_handle);
+			commands.DrawInstanced(2, 18, 0, 0);
+			submit_resource_barriers(
+				commands,
+				create_transition_barrier(
+					*resources.swap_chain_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+		}
 	}
 }
 
@@ -275,7 +343,7 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
 	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
 	m_root_signatures {create_root_signatures(*m_device)},
-	m_debug_grid_pass {create_debug_grid_pipeline_state(*m_device, m_root_signatures)},
+	m_pipelines {create_pipeline_states(*m_device, m_root_signatures)},
 	m_depth_buffer {
 		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
@@ -289,10 +357,11 @@ matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle
 
 void matrix::graphics_engine_state::update()
 {
-	const auto& [view_handle, buffer, allocator, commands] = wait_for_frame();
+	const auto& resources = wait_for_frame();
+	const auto& [view_handle, buffer, allocator, commands] = resources;
 
 	winrt::check_hresult(allocator->Reset());
-	winrt::check_hresult(commands->Reset(allocator.get(), m_debug_grid_pass.get()));
+	winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.debug_grid_pipeline.get()));
 
 	const auto extent = get_extent(*m_swap_chain);
 	const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
@@ -300,25 +369,8 @@ void matrix::graphics_engine_state::update()
 		* DirectX::XMMatrixRotationX(3.14159265f / 3.0f) * DirectX::XMMatrixTranslation(0.0f, 0.0f, 1.0f);
 
 	const auto projection = DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
-
-	commands->SetGraphicsRootSignature(m_root_signatures.default_signature.get());
-	commands->SetGraphicsRoot32BitConstants(0, 16, &view, 0);
-	commands->SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
-
-	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-	maximize_rasterizer(*commands, *buffer);
-	const auto depth_buffer_view = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
-	commands->OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
-
-	commands->ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	submit_resource_barriers(
-		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-	clear_render_target(*commands, view_handle);
-	commands->DrawInstanced(2, 18, 0, 0);
-	submit_resource_barriers(
-		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+	record_debug_grid_commands(
+		*commands, m_root_signatures, resources, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), view, projection);
 
 	winrt::check_hresult(commands->Close());
 
