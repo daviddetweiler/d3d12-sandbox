@@ -174,14 +174,14 @@ namespace matrix {
 
 		auto create_root_signature(ID3D12Device& device)
 		{
-			/*D3D12_ROOT_PARAMETER constants {};
+			D3D12_ROOT_PARAMETER constants {};
 			constants.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-			constants.Constants.Num32BitValues = 4 * 4 * 2;*/
+			constants.Constants.Num32BitValues = 4 * 4 * 2;
 
 			D3D12_ROOT_SIGNATURE_DESC info {};
 			info.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-			/*info.NumParameters = 1;
-			info.pParameters = &constants;*/
+			info.NumParameters = 1;
+			info.pParameters = &constants;
 
 			winrt::com_ptr<ID3DBlob> result {};
 			winrt::com_ptr<ID3DBlob> error {};
@@ -270,8 +270,8 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
 	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
-	m_root_signature {create_root_signature(*m_device)},
-	m_pipeline_state {create_default_pipeline_state(*m_device, *m_root_signature)},
+	m_view_matrices_root_signature {create_root_signature(*m_device)},
+	m_projected_wireframe_pass {create_default_pipeline_state(*m_device, *m_view_matrices_root_signature)},
 	m_depth_buffer {
 		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
@@ -288,9 +288,20 @@ void matrix::graphics_engine_state::update()
 	const auto& [view_handle, buffer, allocator, commands] = wait_for_frame();
 
 	winrt::check_hresult(allocator->Reset());
-	winrt::check_hresult(commands->Reset(allocator.get(), m_pipeline_state.get()));
+	winrt::check_hresult(commands->Reset(allocator.get(), m_projected_wireframe_pass.get()));
 
-	commands->SetGraphicsRootSignature(m_root_signature.get());
+	const auto extent = get_extent(*m_swap_chain);
+	const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
+	const auto view = DirectX::XMMatrixRotationZ(m_fence_current_value * 3.14159265f / 480.0f)
+		* DirectX::XMMatrixRotationX(3.14159265f / 3.0f)
+		* DirectX::XMMatrixTranslation(0.0f, 0.0f, 1.0f);
+
+	const auto projection = DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 100.0f);
+
+	commands->SetGraphicsRootSignature(m_view_matrices_root_signature.get());
+	commands->SetGraphicsRoot32BitConstants(0, 16, &view, 0);
+	commands->SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
+
 	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	maximize_rasterizer(*commands, *buffer);
 	const auto depth_buffer_view = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
@@ -302,7 +313,7 @@ void matrix::graphics_engine_state::update()
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	clear_render_target(*commands, view_handle);
-	commands->DrawInstanced(2, 9, 0, 0);
+	commands->DrawInstanced(2, 18, 0, 0);
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 

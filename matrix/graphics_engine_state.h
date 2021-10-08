@@ -30,8 +30,8 @@ namespace matrix {
 		const winrt::com_ptr<IDXGISwapChain3> m_swap_chain;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_rtv_heap;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_dsv_heap;
-		const winrt::com_ptr<ID3D12RootSignature> m_root_signature;
-		const winrt::com_ptr<ID3D12PipelineState> m_pipeline_state;
+		const winrt::com_ptr<ID3D12RootSignature> m_view_matrices_root_signature;
+		const winrt::com_ptr<ID3D12PipelineState> m_projected_wireframe_pass;
 		
 		winrt::com_ptr<ID3D12Resource> m_depth_buffer;
 		std::array<per_frame_resources, 2> m_frame_resources;
