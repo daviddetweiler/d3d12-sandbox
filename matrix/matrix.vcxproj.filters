@@ -65,10 +65,10 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="vertex.hlsl">
+    <FxCompile Include="debug_grid.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
-    <FxCompile Include="pixel.hlsl">
+    <FxCompile Include="all_white.hlsl">
       <Filter>Source Files</Filter>
     </FxCompile>
   </ItemGroup>

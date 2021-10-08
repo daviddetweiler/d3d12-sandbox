@@ -135,10 +135,10 @@ namespace matrix {
 			command_list.ClearRenderTargetView(view_handle, color.data(), 0, nullptr);
 		}
 
-		auto create_default_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
+		auto create_debug_grid_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
 		{
-			const auto vertex_shader = load_compiled_shader(L"vertex.cso");
-			const auto pixel_shader = load_compiled_shader(L"pixel.cso");
+			const auto vertex_shader = load_compiled_shader(L"debug_grid.cso");
+			const auto pixel_shader = load_compiled_shader(L"all_white.cso");
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC info {};
 			info.pRootSignature = root_signatures.default_signature.get();
@@ -151,7 +151,6 @@ namespace matrix {
 			info.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 			info.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 			info.RasterizerState.DepthClipEnable = true;
-			// info.RasterizerState.FrontCounterClockwise = true;
 			info.DepthStencilState.DepthEnable = true;
 			info.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -276,7 +275,7 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
 	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
 	m_root_signatures {create_root_signatures(*m_device)},
-	m_debug_grid_pass {create_default_pipeline_state(*m_device, m_root_signatures)},
+	m_debug_grid_pass {create_debug_grid_pipeline_state(*m_device, m_root_signatures)},
 	m_depth_buffer {
 		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
