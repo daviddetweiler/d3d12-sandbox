@@ -135,13 +135,13 @@ namespace matrix {
 			command_list.ClearRenderTargetView(view_handle, color.data(), 0, nullptr);
 		}
 
-		auto create_default_pipeline_state(ID3D12Device& device, ID3D12RootSignature& root_signature)
+		auto create_default_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
 		{
 			const auto vertex_shader = load_compiled_shader(L"vertex.cso");
 			const auto pixel_shader = load_compiled_shader(L"pixel.cso");
 
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC info {};
-			info.pRootSignature = &root_signature;
+			info.pRootSignature = root_signatures.default_signature.get();
 			info.VS.BytecodeLength = vertex_shader.size();
 			info.VS.pShaderBytecode = vertex_shader.data();
 			info.PS.BytecodeLength = pixel_shader.size();
@@ -256,6 +256,11 @@ namespace matrix {
 
 			return buffer;
 		}
+
+		root_signature_table create_root_signatures(ID3D12Device& device)
+		{
+			return {.default_signature {create_root_signature(device)}};
+		}
 	}
 }
 
@@ -270,8 +275,8 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
 	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
-	m_view_matrices_root_signature {create_root_signature(*m_device)},
-	m_projected_wireframe_pass {create_default_pipeline_state(*m_device, *m_view_matrices_root_signature)},
+	m_root_signatures {create_root_signatures(*m_device)},
+	m_debug_grid_pass {create_default_pipeline_state(*m_device, m_root_signatures)},
 	m_depth_buffer {
 		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
@@ -288,17 +293,16 @@ void matrix::graphics_engine_state::update()
 	const auto& [view_handle, buffer, allocator, commands] = wait_for_frame();
 
 	winrt::check_hresult(allocator->Reset());
-	winrt::check_hresult(commands->Reset(allocator.get(), m_projected_wireframe_pass.get()));
+	winrt::check_hresult(commands->Reset(allocator.get(), m_debug_grid_pass.get()));
 
 	const auto extent = get_extent(*m_swap_chain);
 	const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
 	const auto view = DirectX::XMMatrixRotationZ(m_fence_current_value * 3.14159265f / 480.0f)
-		* DirectX::XMMatrixRotationX(3.14159265f / 3.0f)
-		* DirectX::XMMatrixTranslation(0.0f, 0.0f, 1.0f);
+		* DirectX::XMMatrixRotationX(3.14159265f / 3.0f) * DirectX::XMMatrixTranslation(0.0f, 0.0f, 1.0f);
 
-	const auto projection = DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 100.0f);
+	const auto projection = DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
 
-	commands->SetGraphicsRootSignature(m_view_matrices_root_signature.get());
+	commands->SetGraphicsRootSignature(m_root_signatures.default_signature.get());
 	commands->SetGraphicsRoot32BitConstants(0, 16, &view, 0);
 	commands->SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
 

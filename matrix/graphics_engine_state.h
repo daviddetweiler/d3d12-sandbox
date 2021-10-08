@@ -10,6 +10,10 @@ namespace matrix {
 		winrt::com_ptr<ID3D12GraphicsCommandList> commands {};
 	};
 
+	struct root_signature_table {
+		const winrt::com_ptr<ID3D12RootSignature> default_signature; // For lack of a better name
+	};
+
 	class graphics_engine_state {
 	public:
 		graphics_engine_state(HWND target_window);
@@ -30,9 +34,9 @@ namespace matrix {
 		const winrt::com_ptr<IDXGISwapChain3> m_swap_chain;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_rtv_heap;
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_dsv_heap;
-		const winrt::com_ptr<ID3D12RootSignature> m_view_matrices_root_signature;
-		const winrt::com_ptr<ID3D12PipelineState> m_projected_wireframe_pass;
-		
+		const root_signature_table m_root_signatures;
+		const winrt::com_ptr<ID3D12PipelineState> m_debug_grid_pass;
+
 		winrt::com_ptr<ID3D12Resource> m_depth_buffer;
 		std::array<per_frame_resources, 2> m_frame_resources;
 
