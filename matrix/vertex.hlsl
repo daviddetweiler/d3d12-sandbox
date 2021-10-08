@@ -1,14 +1,9 @@
-float4 main(uint id : SV_VertexID) : SV_POSITION
+float4 main(uint vertex_id : SV_VertexID, uint instance_id : SV_InstanceID) : SV_POSITION
 {
-	float2 vertices[]
-		= {float2(-0.5f, -0.5f),
-		   float2(0.0f, 0.5f),
-		   float2(0.5f, -0.5f),
-		   float2(-0.3f, -0.3f),
-		   float2(0.2f, 0.7f),
-		   float2(0.7f, -0.3f)};
+	const float2 line_ends[] = {float2(-1.0f, 0.0f), float2(1.0f, 0.0f)};
+	const float offset = 0.2f;
+	const float2 offset_vector
+		= float2(0.0f, offset * (instance_id / 2 + instance_id % 2) * (instance_id % 2 ? 1 : -1));
 
-	float depths[] = {0.3, 0.6};
-
-	return float4(vertices[id % 6], depths[(id / 3) % 2], 1.0f);
+	return float4(line_ends[vertex_id % 2] + offset_vector, 0.0f, 1.0f);
 }

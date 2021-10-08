@@ -182,11 +182,36 @@ namespace matrix {
 				&state));
 		}
 
+		struct bounding_box {
+			vector3 minimum;
+			vector3 maximum;
+		};
+
+		constexpr bounding_box get_bounds(gsl::span<const vector3> vertices) noexcept
+		{
+			float minimum_x {};
+			float minimum_y {};
+			float minimum_z {};
+			float maximum_x {};
+			float maximum_y {};
+			float maximum_z {};
+			for (const auto& vertex : vertices) {
+				minimum_x = std::min(vertex.x, minimum_x);
+				minimum_y = std::min(vertex.y, minimum_y);
+				minimum_z = std::min(vertex.z, minimum_z);
+				maximum_x = std::max(vertex.x, maximum_x);
+				maximum_y = std::max(vertex.y, maximum_y);
+				maximum_z = std::max(vertex.z, maximum_z);
+			}
+
+			return {
+				.minimum {.x {minimum_x}, .y {minimum_y}, .z {minimum_z}},
+				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}}};
+		}
+
 		void do_client_thread(HWND host_window, host_atomic_state& client_data)
 		{
 			bool is_first_frame {true};
-			const auto object = load_wavefront("cube.obj");
-			static_cast<void>(object);
 			graphics_engine_state graphics_state {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();

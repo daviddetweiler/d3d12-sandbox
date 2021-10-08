@@ -126,9 +126,9 @@ namespace matrix {
 		void clear_render_target(
 			ID3D12GraphicsCommandList& command_list,
 			D3D12_CPU_DESCRIPTOR_HANDLE view_handle,
-			float red,
-			float green,
-			float blue,
+			float red = 0.0f,
+			float green = 0.0f,
+			float blue = 0.0f,
 			float alpha = 1.0f)
 		{
 			const std::array color {red, green, blue, alpha};
@@ -155,7 +155,7 @@ namespace matrix {
 			info.DepthStencilState.DepthEnable = true;
 			info.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 			info.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			info.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 			info.NumRenderTargets = 1;
 			info.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 			info.DSVFormat = DXGI_FORMAT_D32_FLOAT;
@@ -291,7 +291,7 @@ void matrix::graphics_engine_state::update()
 	winrt::check_hresult(commands->Reset(allocator.get(), m_pipeline_state.get()));
 
 	commands->SetGraphicsRootSignature(m_root_signature.get());
-	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
 	maximize_rasterizer(*commands, *buffer);
 	const auto depth_buffer_view = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	commands->OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
@@ -301,8 +301,8 @@ void matrix::graphics_engine_state::update()
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	clear_render_target(*commands, view_handle, 0.0f, 10.0f / 255.0f, 26.0f / 255.0f);
-	commands->DrawInstanced(6, 1, 0, 0);
+	clear_render_target(*commands, view_handle);
+	commands->DrawInstanced(2, 9, 0, 0);
 	submit_resource_barriers(
 		*commands, create_transition_barrier(*buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 
@@ -319,6 +319,8 @@ void matrix::graphics_engine_state::signal_size_change()
 	m_frame_resources = {};
 	resize(*m_swap_chain);
 	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain);
+	m_depth_buffer
+		= create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain));
 }
 
 void matrix::graphics_engine_state::wait_for_idle()

@@ -1,13 +1,17 @@
 ﻿#pragma once
 
+#define NOMINMAX
+
 #include <array>
 #include <atomic>
 #include <charconv>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
+#include <numeric>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <gsl/gsl>
