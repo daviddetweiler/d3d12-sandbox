@@ -209,9 +209,52 @@ namespace matrix {
 				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}}};
 		}
 
+		void adjust_view_matrix(DirectX::XMMATRIX& view_matrix, WPARAM key)
+		{
+			constexpr auto linear_speed = 0.01f;
+			constexpr auto angular_speed = 0.01f;
+			switch (key) {
+			case 'W':
+				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, -linear_speed);
+				break;
+
+			case 'S':
+				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, linear_speed);
+				break;
+
+			case 'A':
+				view_matrix *= DirectX::XMMatrixRotationY(angular_speed);
+				break;
+
+			case 'D':
+				view_matrix *= DirectX::XMMatrixRotationY(-angular_speed);
+				break;
+
+			case 'R':
+				view_matrix *= DirectX::XMMatrixRotationX(angular_speed);
+				break;
+
+			case 'F':
+				view_matrix *= DirectX::XMMatrixRotationX(-angular_speed);
+				break;
+
+			case 'Q':
+				view_matrix *= DirectX::XMMatrixRotationZ(-angular_speed);
+				break;
+
+			case 'E':
+				view_matrix *= DirectX::XMMatrixRotationZ(angular_speed);
+				break;
+
+			default:
+				break;
+			}
+		}
+
 		void do_client_thread(HWND host_window, host_atomic_state& client_data)
 		{
 			bool is_first_frame {true};
+			auto view_matrix = DirectX::XMMatrixIdentity();
 			graphics_engine_state graphics_state {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();
@@ -221,10 +264,12 @@ namespace matrix {
 				if (current_state.size_invalidated)
 					graphics_state.signal_size_change();
 
-				if (!current_state.input_events.empty())
-					OutputDebugStringW(L"[note] input events available\n");
+				for (const auto& event : current_state.input_events) {
+					if (event.type == input_event_type::key_pressed)
+						adjust_view_matrix(view_matrix, event.w);
+				}
 
-				graphics_state.update();
+				graphics_state.update(view_matrix);
 
 				if (is_first_frame) {
 					SendMessageW(host_window, client_ready, 0, 0);

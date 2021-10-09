@@ -22,7 +22,7 @@ namespace matrix {
 	class graphics_engine_state {
 	public:
 		graphics_engine_state(HWND target_window);
-		void update();
+		void update(const DirectX::XMMATRIX&);
 		void signal_size_change();
 
 		GSL_SUPPRESS(f .6)
@@ -47,6 +47,8 @@ namespace matrix {
 
 		std::uint64_t m_fence_current_value;
 		const winrt::com_ptr<ID3D12Fence> m_fence;
+
+		DirectX::XMMATRIX m_projection;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
 

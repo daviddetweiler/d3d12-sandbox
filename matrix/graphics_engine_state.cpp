@@ -306,27 +306,37 @@ namespace matrix {
 			const DirectX::XMMATRIX& view,
 			const DirectX::XMMATRIX& projection)
 		{
+			const auto& view_handle = resources.render_target_view_handle;
+			const auto& backbuffer = resources.swap_chain_buffer;
+
 			commands.SetGraphicsRootSignature(root_signatures.default_signature.get());
 			commands.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
 			commands.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
 
 			commands.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			maximize_rasterizer(commands, *resources.swap_chain_buffer);
-			commands.OMSetRenderTargets(1, &resources.render_target_view_handle, false, &depth_buffer_view);
+			maximize_rasterizer(commands, *backbuffer);
+			commands.OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
 
 			commands.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 			submit_resource_barriers(
 				commands,
 				create_transition_barrier(
-					*resources.swap_chain_buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+					*backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-			clear_render_target(commands, resources.render_target_view_handle);
+			clear_render_target(commands, view_handle);
 			commands.DrawInstanced(2, 18, 0, 0);
 			submit_resource_barriers(
 				commands,
 				create_transition_barrier(
-					*resources.swap_chain_buffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+					*backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+		}
+
+		DirectX::XMMATRIX compute_projection(IDXGISwapChain& swap_chain)
+		{
+			const auto extent = get_extent(swap_chain);
+			const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
+			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
 		}
 	}
 }
@@ -348,14 +358,15 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
-	m_fence {create_fence(*m_device, m_fence_current_value)}
+	m_fence {create_fence(*m_device, m_fence_current_value)},
+	m_projection {compute_projection(*m_swap_chain)}
 {
 }
 
 GSL_SUPPRESS(f .6)
 matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
-void matrix::graphics_engine_state::update()
+void matrix::graphics_engine_state::update(const DirectX::XMMATRIX& view)
 {
 	const auto& resources = wait_for_frame();
 	const auto& [view_handle, buffer, allocator, commands] = resources;
@@ -363,14 +374,8 @@ void matrix::graphics_engine_state::update()
 	winrt::check_hresult(allocator->Reset());
 	winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.debug_grid_pipeline.get()));
 
-	const auto extent = get_extent(*m_swap_chain);
-	const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
-	const auto view = DirectX::XMMatrixRotationZ(m_fence_current_value * 3.14159265f / 480.0f)
-		* DirectX::XMMatrixRotationX(3.14159265f / 3.0f) * DirectX::XMMatrixTranslation(0.0f, 0.0f, 1.0f);
-
-	const auto projection = DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
 	record_debug_grid_commands(
-		*commands, m_root_signatures, resources, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), view, projection);
+		*commands, m_root_signatures, resources, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), view, m_projection);
 
 	winrt::check_hresult(commands->Close());
 
@@ -387,6 +392,8 @@ void matrix::graphics_engine_state::signal_size_change()
 	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain);
 	m_depth_buffer
 		= create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain));
+
+	m_projection = compute_projection(*m_swap_chain);
 }
 
 void matrix::graphics_engine_state::wait_for_idle()
