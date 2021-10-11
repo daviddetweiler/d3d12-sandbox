@@ -211,21 +211,25 @@ namespace matrix {
 
 		void adjust_view_matrix(DirectX::XMMATRIX& view_matrix, WPARAM key)
 		{
-			constexpr auto linear_speed = 0.01f;
-			constexpr auto angular_speed = 0.01f;
+			constexpr auto linear_speed = 0.015f;
+			constexpr auto angular_speed = 0.02f;
 			switch (key) {
+			case VK_UP:
 			case 'W':
 				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, -linear_speed);
 				break;
 
+			case VK_DOWN:
 			case 'S':
 				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, linear_speed);
 				break;
 
+			case VK_LEFT:
 			case 'A':
 				view_matrix *= DirectX::XMMatrixRotationY(angular_speed);
 				break;
 
+			case VK_RIGHT:
 			case 'D':
 				view_matrix *= DirectX::XMMatrixRotationY(-angular_speed);
 				break;
