@@ -28,3 +28,11 @@ I believe the most acceptable solution is to allow some window messages to be lo
 programs that respect it. The client thread will remain asynchronous. If we decide to support exclusive-mode fullscreen (maybe? if it buys us anything over borderless window) in the future,
 we will likely be forced to suppress DXGI alt+enter handling to be able to properly prevent the update loop from presenting before a resize has been processed. Or we could handle the fullscreen transition
 in the client loop? How would that look? We could bar asynchronous fullscreen transitions (a la DXGI) and just perform the transition ourselves at some well-defined point in the client loop.
+
+## To-do list
+- Implement keyboard toggling of render pipeline (both the actual PSOs and the recorded commands)
+- Implement simultaneous inputs (i.e. keep track of which keys are still depressed per-frame)
+- Implement frame-independent fixed time-steps
+- Implement in-upload-heap geometry buffers for first steps to object rendering
+	- Gouraud shading!
+	- Forward+!
