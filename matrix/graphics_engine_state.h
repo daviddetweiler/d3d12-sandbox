@@ -19,10 +19,12 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12PipelineState> object_pipeline;
 	};
 
+	enum class render_type { debug_grid, object_view };
+
 	class graphics_engine_state {
 	public:
 		graphics_engine_state(HWND target_window);
-		void update(const DirectX::XMMATRIX&);
+		void update(render_type type, const DirectX::XMMATRIX& view_matrix);
 		void signal_size_change();
 
 		GSL_SUPPRESS(f .6)
@@ -48,7 +50,7 @@ namespace matrix {
 		std::uint64_t m_fence_current_value;
 		const winrt::com_ptr<ID3D12Fence> m_fence;
 
-		DirectX::XMMATRIX m_projection;
+		DirectX::XMMATRIX m_projection_matrix;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
 

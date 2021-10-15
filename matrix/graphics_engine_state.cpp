@@ -299,37 +299,67 @@ namespace matrix {
 		}
 
 		void record_debug_grid_commands(
-			ID3D12GraphicsCommandList& commands,
-			const root_signature_table& root_signatures,
 			const per_frame_resources& resources,
+			const root_signature_table& root_signatures,
 			D3D12_CPU_DESCRIPTOR_HANDLE depth_buffer_view,
 			const DirectX::XMMATRIX& view,
 			const DirectX::XMMATRIX& projection)
 		{
+			auto& commands = *resources.commands;
+			auto& backbuffer = *resources.swap_chain_buffer;
 			const auto& view_handle = resources.render_target_view_handle;
-			const auto& backbuffer = resources.swap_chain_buffer;
 
 			commands.SetGraphicsRootSignature(root_signatures.default_signature.get());
 			commands.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
 			commands.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
 
 			commands.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			maximize_rasterizer(commands, *backbuffer);
+			maximize_rasterizer(commands, backbuffer);
 			commands.OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
 
 			commands.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 			submit_resource_barriers(
 				commands,
-				create_transition_barrier(
-					*backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 			clear_render_target(commands, view_handle);
 			commands.DrawInstanced(2, 18, 0, 0);
 			submit_resource_barriers(
 				commands,
-				create_transition_barrier(
-					*backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+		}
+
+		void record_object_view_commands(
+			const per_frame_resources& resources,
+			const root_signature_table& root_signatures,
+			D3D12_CPU_DESCRIPTOR_HANDLE depth_buffer_view,
+			const DirectX::XMMATRIX& view,
+			const DirectX::XMMATRIX& projection)
+		{
+			auto& commands = *resources.commands;
+			auto& backbuffer = *resources.swap_chain_buffer;
+			const auto& view_handle = resources.render_target_view_handle;
+
+			commands.SetGraphicsRootSignature(root_signatures.default_signature.get());
+			commands.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
+			commands.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
+
+			commands.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			maximize_rasterizer(commands, backbuffer);
+			commands.OMSetRenderTargets(1, &view_handle, false, &depth_buffer_view);
+
+			commands.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+			submit_resource_barriers(
+				commands,
+				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+			clear_render_target(commands, view_handle);
+			commands.DrawInstanced(2, 18, 0, 0);
+			submit_resource_barriers(
+				commands,
+				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 		}
 
 		DirectX::XMMATRIX compute_projection(IDXGISwapChain& swap_chain)
@@ -359,23 +389,32 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
-	m_projection {compute_projection(*m_swap_chain)}
+	m_projection_matrix {compute_projection(*m_swap_chain)}
 {
 }
 
 GSL_SUPPRESS(f .6)
 matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
-void matrix::graphics_engine_state::update(const DirectX::XMMATRIX& view)
+void matrix::graphics_engine_state::update(render_type type, const DirectX::XMMATRIX& view_matrix)
 {
 	const auto& resources = wait_for_frame();
 	const auto& [view_handle, buffer, allocator, commands] = resources;
 
 	winrt::check_hresult(allocator->Reset());
-	winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.debug_grid_pipeline.get()));
 
-	record_debug_grid_commands(
-		*commands, m_root_signatures, resources, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), view, m_projection);
+	const auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
+	switch (type) {
+	case render_type::debug_grid:
+		winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.debug_grid_pipeline.get()));
+		record_debug_grid_commands(resources, m_root_signatures, dsv_handle, view_matrix, m_projection_matrix);
+		break;
+
+	case render_type::object_view:
+		winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.object_pipeline.get()));
+		record_object_view_commands(resources, m_root_signatures, dsv_handle, view_matrix, m_projection_matrix);
+		break;
+	}
 
 	winrt::check_hresult(commands->Close());
 
@@ -393,7 +432,7 @@ void matrix::graphics_engine_state::signal_size_change()
 	m_depth_buffer
 		= create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain));
 
-	m_projection = compute_projection(*m_swap_chain);
+	m_projection_matrix = compute_projection(*m_swap_chain);
 }
 
 void matrix::graphics_engine_state::wait_for_idle()

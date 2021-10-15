@@ -259,6 +259,7 @@ namespace matrix {
 		{
 			bool is_first_frame {true};
 			auto view_matrix = DirectX::XMMatrixIdentity();
+			render_type type = render_type::debug_grid;
 			graphics_engine_state graphics_state {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();
@@ -269,11 +270,15 @@ namespace matrix {
 					graphics_state.signal_size_change();
 
 				for (const auto& event : current_state.input_events) {
-					if (event.type == input_event_type::key_pressed)
-						adjust_view_matrix(view_matrix, event.w);
+					if (event.type == input_event_type::key_pressed) {
+						if (event.w == VK_SPACE)
+							type = type == render_type::debug_grid ? render_type::object_view : render_type::debug_grid;
+						else
+							adjust_view_matrix(view_matrix, event.w);
+					}
 				}
 
-				graphics_state.update(view_matrix);
+				graphics_state.update(type, view_matrix);
 
 				if (is_first_frame) {
 					SendMessageW(host_window, client_ready, 0, 0);
