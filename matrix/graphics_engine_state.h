@@ -6,6 +6,8 @@ namespace matrix {
 	struct per_frame_resources {
 		D3D12_CPU_DESCRIPTOR_HANDLE render_target_view_handle {};
 		winrt::com_ptr<ID3D12Resource> swap_chain_buffer {};
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_view_handle {};
+		winrt::com_ptr<ID3D12Resource> depth_buffer {};
 		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
 		winrt::com_ptr<ID3D12GraphicsCommandList> commands {};
 	};
@@ -44,7 +46,6 @@ namespace matrix {
 		const root_signature_table m_root_signatures;
 		const pipeline_state_table m_pipelines;
 
-		winrt::com_ptr<ID3D12Resource> m_depth_buffer;
 		std::array<per_frame_resources, 2> m_frame_resources;
 
 		std::uint64_t m_fence_current_value;

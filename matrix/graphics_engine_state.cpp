@@ -70,34 +70,6 @@ namespace matrix {
 			return winrt::capture<ID3D12DescriptorHeap>(&device, &ID3D12Device::CreateDescriptorHeap, &description);
 		}
 
-		std::array<per_frame_resources, 2>
-		create_frame_resources(ID3D12Device4& device, ID3D12DescriptorHeap& rtv_heap, IDXGISwapChain& swap_chain)
-		{
-			const auto handle_size = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			D3D12_RENDER_TARGET_VIEW_DESC description {};
-			description.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-			description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			auto descriptor_handle = rtv_heap.GetCPUDescriptorHandleForHeapStart();
-			std::array<per_frame_resources, 2> frame_resources {};
-			for (unsigned int i {}; i < 2; ++i, descriptor_handle.ptr += handle_size) {
-				const auto backbuffer = winrt::capture<ID3D12Resource>(&swap_chain, &IDXGISwapChain::GetBuffer, i);
-				device.CreateRenderTargetView(backbuffer.get(), &description, descriptor_handle);
-				frame_resources.at(i)
-					= {descriptor_handle,
-					   backbuffer,
-					   winrt::capture<ID3D12CommandAllocator>(
-						   &device, &ID3D12Device::CreateCommandAllocator, D3D12_COMMAND_LIST_TYPE_DIRECT),
-					   winrt::capture<ID3D12GraphicsCommandList>(
-						   &device,
-						   &ID3D12Device4::CreateCommandList1,
-						   0,
-						   D3D12_COMMAND_LIST_TYPE_DIRECT,
-						   D3D12_COMMAND_LIST_FLAG_NONE)};
-			}
-
-			return frame_resources;
-		}
-
 		D3D12_RESOURCE_BARRIER create_transition_barrier(
 			ID3D12Resource& resource, D3D12_RESOURCE_STATES state_before, D3D12_RESOURCE_STATES state_after) noexcept
 		{
@@ -368,6 +340,49 @@ namespace matrix {
 			const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
 			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
 		}
+
+		std::array<per_frame_resources, 2> create_frame_resources(
+			ID3D12Device4& device,
+			ID3D12DescriptorHeap& rtv_heap,
+			ID3D12DescriptorHeap& dsv_heap,
+			IDXGISwapChain& swap_chain)
+		{
+			const auto render_handle_size = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			const auto depth_handle_size = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+			D3D12_RENDER_TARGET_VIEW_DESC description {};
+			description.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			auto render_target_view_handle = rtv_heap.GetCPUDescriptorHandleForHeapStart();
+			auto depth_view_handle = dsv_heap.GetCPUDescriptorHandleForHeapStart();
+			std::array<per_frame_resources, 2> frame_resources {};
+			for (unsigned int i {}; i < 2; ++i) {
+				auto backbuffer = winrt::capture<ID3D12Resource>(&swap_chain, &IDXGISwapChain::GetBuffer, i);
+				device.CreateRenderTargetView(backbuffer.get(), &description, render_target_view_handle);
+				auto depth_buffer = create_depth_buffer(device, depth_view_handle, get_extent(swap_chain));
+				auto command_allocator = winrt::capture<ID3D12CommandAllocator>(
+					&device, &ID3D12Device::CreateCommandAllocator, D3D12_COMMAND_LIST_TYPE_DIRECT);
+
+				auto command_list = winrt::capture<ID3D12GraphicsCommandList>(
+					&device,
+					&ID3D12Device4::CreateCommandList1,
+					0,
+					D3D12_COMMAND_LIST_TYPE_DIRECT,
+					D3D12_COMMAND_LIST_FLAG_NONE);
+
+				frame_resources.at(i)
+					= {.render_target_view_handle {render_target_view_handle},
+					   .swap_chain_buffer {std::move(backbuffer)},
+					   .depth_view_handle {depth_view_handle},
+					   .depth_buffer {std::move(depth_buffer)},
+					   .allocator {std::move(command_allocator)},
+					   .commands {std::move(command_list)}};
+
+				render_target_view_handle.ptr += render_handle_size;
+				depth_view_handle.ptr += depth_handle_size;
+			}
+
+			return frame_resources;
+		}
 	}
 }
 
@@ -381,12 +396,10 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
-	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
+	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2)},
 	m_root_signatures {create_root_signatures(*m_device)},
 	m_pipelines {create_pipeline_states(*m_device, m_root_signatures)},
-	m_depth_buffer {
-		create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain))},
-	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
+	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)}
@@ -399,11 +412,8 @@ matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle
 void matrix::graphics_engine_state::update(render_type type, const DirectX::XMMATRIX& view_matrix)
 {
 	const auto& resources = wait_for_frame();
-	const auto& [view_handle, buffer, allocator, commands] = resources;
-
+	const auto& [view_handle, buffer, dsv_handle, depth_buffer, allocator, commands] = resources;
 	winrt::check_hresult(allocator->Reset());
-
-	const auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	switch (type) {
 	case render_type::debug_grid:
 		winrt::check_hresult(commands->Reset(allocator.get(), m_pipelines.debug_grid_pipeline.get()));
@@ -428,10 +438,7 @@ void matrix::graphics_engine_state::signal_size_change()
 	wait_for_idle();
 	m_frame_resources = {};
 	resize(*m_swap_chain);
-	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain);
-	m_depth_buffer
-		= create_depth_buffer(*m_device, m_dsv_heap->GetCPUDescriptorHandleForHeapStart(), get_extent(*m_swap_chain));
-
+	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain);
 	m_projection_matrix = compute_projection(*m_swap_chain);
 }
 
