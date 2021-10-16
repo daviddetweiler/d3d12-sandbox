@@ -163,7 +163,7 @@ namespace matrix {
 			window_class.cbSize = sizeof(window_class);
 			window_class.hCursor = winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW));
 			window_class.hInstance = instance;
-			window_class.lpszClassName = L"host_window";
+			window_class.lpszClassName = L"matrix::host_window";
 			window_class.lpfnWndProc = handle_host_creation;
 			winrt::check_bool(RegisterClassExW(&window_class));
 
@@ -209,49 +209,49 @@ namespace matrix {
 				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}}};
 		}
 
-		void adjust_view_matrix(DirectX::XMMATRIX& view_matrix, WPARAM key)
+		DirectX::XMMATRIX map_to_camera_transform(WPARAM key)
 		{
-			constexpr auto linear_speed = 0.015f;
-			constexpr auto angular_speed = 0.02f;
+			static constexpr auto linear_speed = 0.015f;
+			static constexpr auto angular_speed = 0.02f;
+			static const auto forward_translate = DirectX::XMMatrixTranslation(0.0f, 0.0f, -linear_speed);
+			static const auto back_translate = DirectX::XMMatrixTranslation(0.0f, 0.0f, linear_speed);
+			static const auto left_rotate = DirectX::XMMatrixRotationY(angular_speed);
+			static const auto right_rotate = DirectX::XMMatrixRotationY(-angular_speed);
+			static const auto up_rotate = DirectX::XMMatrixRotationX(angular_speed);
+			static const auto down_rotate = DirectX::XMMatrixRotationX(-angular_speed);
+			static const auto left_roll = DirectX::XMMatrixRotationZ(-angular_speed);
+			static const auto right_roll = DirectX::XMMatrixRotationZ(angular_speed);
 			switch (key) {
 			case VK_UP:
 			case 'W':
-				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, -linear_speed);
-				break;
+				return forward_translate;
 
 			case VK_DOWN:
 			case 'S':
-				view_matrix *= DirectX::XMMatrixTranslation(0.0f, 0.0f, linear_speed);
-				break;
+				return back_translate;
 
 			case VK_LEFT:
 			case 'A':
-				view_matrix *= DirectX::XMMatrixRotationY(angular_speed);
-				break;
+				return left_rotate;
 
 			case VK_RIGHT:
 			case 'D':
-				view_matrix *= DirectX::XMMatrixRotationY(-angular_speed);
-				break;
+				return right_rotate;
 
 			case 'R':
-				view_matrix *= DirectX::XMMatrixRotationX(angular_speed);
-				break;
+				return up_rotate;
 
 			case 'F':
-				view_matrix *= DirectX::XMMatrixRotationX(-angular_speed);
-				break;
+				return down_rotate;
 
 			case 'Q':
-				view_matrix *= DirectX::XMMatrixRotationZ(-angular_speed);
-				break;
+				return left_roll;
 
 			case 'E':
-				view_matrix *= DirectX::XMMatrixRotationZ(angular_speed);
-				break;
+				return right_roll;
 
 			default:
-				break;
+				return DirectX::XMMatrixIdentity();
 			}
 		}
 
@@ -274,7 +274,7 @@ namespace matrix {
 						if (event.w == VK_SPACE)
 							type = type == render_type::debug_grid ? render_type::object_view : render_type::debug_grid;
 						else
-							adjust_view_matrix(view_matrix, event.w);
+							view_matrix *= map_to_camera_transform(event.w);
 					}
 				}
 

@@ -57,7 +57,6 @@ namespace matrix {
 
 		void resize(IDXGISwapChain& swap_chain)
 		{
-			OutputDebugStringW(L"[note] resize triggered\n");
 			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
 		}
 
