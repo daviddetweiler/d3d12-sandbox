@@ -4,12 +4,15 @@
 
 namespace matrix {
 	struct per_frame_resources {
-		D3D12_CPU_DESCRIPTOR_HANDLE render_target_view_handle {};
-		winrt::com_ptr<ID3D12Resource> swap_chain_buffer {};
-		D3D12_CPU_DESCRIPTOR_HANDLE depth_view_handle {};
-		winrt::com_ptr<ID3D12Resource> depth_buffer {};
 		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
-		winrt::com_ptr<ID3D12GraphicsCommandList> commands {};
+		winrt::com_ptr<ID3D12GraphicsCommandList> command_list {};
+		
+		// Swap chain dependent
+
+		D3D12_CPU_DESCRIPTOR_HANDLE backbuffer_view {};
+		winrt::com_ptr<ID3D12Resource> backbuffer {};
+		D3D12_CPU_DESCRIPTOR_HANDLE depth_buffer_view {};
+		winrt::com_ptr<ID3D12Resource> depth_buffer {};
 	};
 
 	struct root_signature_table {
@@ -21,12 +24,12 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12PipelineState> object_pipeline;
 	};
 
-	enum class render_type { debug_grid, object_view };
+	enum class render_mode { debug_grid, object_view };
 
 	class graphics_engine_state {
 	public:
 		graphics_engine_state(HWND target_window);
-		void update(render_type type, const DirectX::XMMATRIX& view_matrix);
+		void update(render_mode type, const DirectX::XMMATRIX& view_matrix);
 		void signal_size_change();
 
 		GSL_SUPPRESS(f .6)

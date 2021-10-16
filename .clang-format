@@ -16,3 +16,5 @@ BreakConstructorInitializers: AfterColon
 AllowAllConstructorInitializersOnNextLine: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 SpaceInEmptyBlock: false
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false

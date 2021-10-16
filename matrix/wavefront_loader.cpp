@@ -36,6 +36,7 @@ matrix::wavefront matrix::load_wavefront(gsl::czstring<> name)
 {
 	std::ifstream object_file {name, object_file.ate};
 	object_file.exceptions(object_file.badbit);
+
 	std::vector<char> content(object_file.tellg());
 	object_file.seekg(object_file.beg);
 	object_file.read(content.data(), content.size());

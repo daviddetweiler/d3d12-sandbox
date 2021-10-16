@@ -159,12 +159,14 @@ namespace matrix {
 
 		HWND create_host_window(HINSTANCE instance, host_atomic_state& state)
 		{
-			WNDCLASSEXW window_class {};
-			window_class.cbSize = sizeof(window_class);
-			window_class.hCursor = winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW));
-			window_class.hInstance = instance;
-			window_class.lpszClassName = L"matrix::host_window";
-			window_class.lpfnWndProc = handle_host_creation;
+			const WNDCLASSEXW window_class {
+				.cbSize {sizeof(window_class)},
+				.lpfnWndProc {handle_host_creation},
+				.hInstance {instance},
+				.hCursor {winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW))},
+				.lpszClassName {L"matrix::host_window"},
+			};
+
 			winrt::check_bool(RegisterClassExW(&window_class));
 
 			return winrt::check_pointer(CreateWindowExW(
@@ -206,7 +208,8 @@ namespace matrix {
 
 			return {
 				.minimum {.x {minimum_x}, .y {minimum_y}, .z {minimum_z}},
-				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}}};
+				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}},
+			};
 		}
 
 		DirectX::XMMATRIX map_to_camera_transform(WPARAM key)
@@ -259,27 +262,26 @@ namespace matrix {
 		{
 			bool is_first_frame {true};
 			auto view_matrix = DirectX::XMMatrixIdentity();
-			render_type type = render_type::debug_grid;
-			graphics_engine_state graphics_state {host_window};
+			render_mode type = render_mode::debug_grid;
+			graphics_engine_state renderer {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();
 				if (current_state.exit_requested)
 					break;
 
 				if (current_state.size_invalidated)
-					graphics_state.signal_size_change();
+					renderer.signal_size_change();
 
 				for (const auto& event : current_state.input_events) {
 					if (event.type == input_event_type::key_pressed) {
 						if (event.w == VK_SPACE)
-							type = type == render_type::debug_grid ? render_type::object_view : render_type::debug_grid;
+							type = type == render_mode::debug_grid ? render_mode::object_view : render_mode::debug_grid;
 						else
 							view_matrix *= map_to_camera_transform(event.w);
 					}
 				}
 
-				graphics_state.update(type, view_matrix);
-
+				renderer.update(type, view_matrix);
 				if (is_first_frame) {
 					SendMessageW(host_window, client_ready, 0, 0);
 					is_first_frame = false;
