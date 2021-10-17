@@ -214,8 +214,8 @@ namespace matrix {
 
 		DirectX::XMMATRIX map_to_camera_transform(WPARAM key)
 		{
-			static constexpr auto linear_speed = 0.015f;
-			static constexpr auto angular_speed = 0.02f;
+			static constexpr auto linear_speed = 0.03f;
+			static constexpr auto angular_speed = 0.04f;
 			static const auto forward_translate = DirectX::XMMatrixTranslation(0.0f, 0.0f, -linear_speed);
 			static const auto back_translate = DirectX::XMMatrixTranslation(0.0f, 0.0f, linear_speed);
 			static const auto left_rotate = DirectX::XMMatrixRotationY(angular_speed);
@@ -274,10 +274,19 @@ namespace matrix {
 
 				for (const auto& event : current_state.input_events) {
 					if (event.type == input_event_type::key_pressed) {
-						if (event.w == VK_SPACE)
+						switch (event.w) {
+						case VK_SPACE:
 							type = type == render_mode::debug_grid ? render_mode::object_view : render_mode::debug_grid;
-						else
+							break;
+
+						case VK_F11:
+							OutputDebugStringW(L"[note] not implemented yet\n");
+							break;
+
+						default:
 							view_matrix *= map_to_camera_transform(event.w);
+							break;
+						}
 					}
 				}
 

@@ -9,13 +9,9 @@ namespace matrix {
 		float z;
 	};
 
-	struct object_face {
-		std::array<unsigned int, 3> indices;
-	};
-
 	struct wavefront {
 		std::vector<vector3> positions;
-		std::vector<object_face> faces;
+		std::vector<std::array<unsigned int, 3>> faces;
 	};
 
 	wavefront load_wavefront(gsl::czstring<> name);

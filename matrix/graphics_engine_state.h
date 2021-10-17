@@ -6,7 +6,7 @@ namespace matrix {
 	struct per_frame_resources {
 		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
 		winrt::com_ptr<ID3D12GraphicsCommandList> command_list {};
-		
+
 		// Swap chain dependent
 
 		D3D12_CPU_DESCRIPTOR_HANDLE backbuffer_view {};
@@ -25,6 +25,13 @@ namespace matrix {
 	};
 
 	enum class render_mode { debug_grid, object_view };
+
+	struct loaded_geometry {
+		winrt::com_ptr<ID3D12Resource> buffer;
+		D3D12_INDEX_BUFFER_VIEW index_view;
+		D3D12_VERTEX_BUFFER_VIEW vertex_view;
+		unsigned int size;
+	};
 
 	class graphics_engine_state {
 	public:
@@ -55,6 +62,7 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12Fence> m_fence;
 
 		DirectX::XMMATRIX m_projection_matrix;
+		const loaded_geometry m_cube;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
 

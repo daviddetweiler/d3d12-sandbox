@@ -145,6 +145,7 @@
     <ClInclude Include="wavefront_loader.h" />
     <ResourceCompile Include="matrix.rc" />
     <Manifest Include="matrix.exe.manifest" />
+    <None Include="cube.wv" />
     <None Include="packages.config" />
     <None Include="PropertySheet.props" />
     <Text Include="readme.txt">
@@ -170,11 +171,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="cube.obj">
-      <FileType>Document</FileType>
-    </Text>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

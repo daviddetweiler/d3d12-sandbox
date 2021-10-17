@@ -34,8 +34,8 @@ namespace matrix {
 
 matrix::wavefront matrix::load_wavefront(gsl::czstring<> name)
 {
-	std::ifstream object_file {name, object_file.ate};
-	object_file.exceptions(object_file.badbit);
+	std::ifstream object_file {name, object_file.ate | object_file.binary};
+	object_file.exceptions(object_file.badbit | object_file.failbit);
 
 	std::vector<char> content(object_file.tellg());
 	object_file.seekg(object_file.beg);
@@ -45,14 +45,14 @@ matrix::wavefront matrix::load_wavefront(gsl::czstring<> name)
 	const auto content_end = content.end();
 
 	std::vector<vector3> positions {};
-	std::vector<object_face> faces {};
+	std::vector<std::array<unsigned int, 3>> faces {};
 	while (true) {
-		const auto next_line = get_next_token<'\n'>(content_iterator, content_end);
+		const auto next_line = get_next_token<'\r'>(content_iterator, content_end);
 		if (next_line.empty())
 			break;
 
 		const auto line_end = next_line.end();
-		auto line_iterator = next_line.begin();
+		auto line_iterator = ++next_line.begin();
 		const auto line_type = get_next_token<' '>(line_iterator, line_end);
 		if (line_type == "v") {
 			const auto x = get_next_token<' '>(line_iterator, line_end);
@@ -62,9 +62,9 @@ matrix::wavefront matrix::load_wavefront(gsl::czstring<> name)
 		}
 		else if (line_type == "f") {
 			faces.push_back({
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)),
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)),
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)),
+				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
+				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
+				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
 			});
 		}
 	}

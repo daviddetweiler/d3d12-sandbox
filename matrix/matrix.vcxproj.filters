@@ -51,10 +51,10 @@
   <ItemGroup>
     <None Include="PropertySheet.props" />
     <None Include="packages.config" />
+    <None Include="cube.wv" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />
-    <Text Include="cube.obj" />
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="matrix.exe.manifest" />

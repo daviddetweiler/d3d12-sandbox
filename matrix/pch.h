@@ -7,6 +7,7 @@
 #include <charconv>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <mutex>
 #include <numeric>
 #include <string_view>

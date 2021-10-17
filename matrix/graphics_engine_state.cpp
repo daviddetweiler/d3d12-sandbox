@@ -3,6 +3,7 @@
 #include "graphics_engine_state.h"
 
 #include "shader_loading.h"
+#include "wavefront_loader.h"
 
 namespace matrix {
 	namespace {
@@ -158,6 +159,7 @@ namespace matrix {
 			const D3D12_INPUT_ELEMENT_DESC position {
 				.SemanticName {"POSITION"},
 				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
 				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
 			};
 
@@ -221,13 +223,13 @@ namespace matrix {
 		{
 			const auto info = target.GetDesc();
 			const D3D12_RECT scissor {
-				.right {gsl::narrow_cast<long>(info.Width)},
-				.bottom {gsl::narrow_cast<long>(info.Height)},
+				.right {gsl::narrow<long>(info.Width)},
+				.bottom {gsl::narrow<long>(info.Height)},
 			};
 
 			const D3D12_VIEWPORT viewport {
-				.Width {gsl::narrow_cast<float>(info.Width)},
-				.Height {gsl::narrow_cast<float>(info.Height)},
+				.Width {gsl::narrow<float>(info.Width)},
+				.Height {gsl::narrow<float>(info.Height)},
 				.MaxDepth {1.0f},
 			};
 
@@ -332,7 +334,8 @@ namespace matrix {
 			const per_frame_resources& resources,
 			const root_signature_table& root_signatures,
 			const DirectX::XMMATRIX& view,
-			const DirectX::XMMATRIX& projection)
+			const DirectX::XMMATRIX& projection,
+			const loaded_geometry& object)
 		{
 			auto& command_list = *resources.command_list;
 			auto& backbuffer = *resources.backbuffer;
@@ -344,6 +347,8 @@ namespace matrix {
 			command_list.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
 
 			command_list.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			command_list.IASetIndexBuffer(&object.index_view);
+			command_list.IASetVertexBuffers(0, 1, &object.vertex_view);
 			maximize_rasterizer(command_list, backbuffer);
 			command_list.OMSetRenderTargets(1, &backbuffer_view, false, &depth_buffer_view);
 
@@ -354,7 +359,7 @@ namespace matrix {
 				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 			clear_render_target(command_list, backbuffer_view);
-			command_list.DrawInstanced(2, 18, 0, 0);
+			command_list.DrawIndexedInstanced(object.size, 1, 0, 0, 0);
 			submit_resource_barriers(
 				command_list,
 				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
@@ -447,6 +452,50 @@ namespace matrix {
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr);
 		}
+
+		auto map(ID3D12Resource& resource)
+		{
+			const D3D12_RANGE range {};
+			void* pointer;
+			winrt::check_hresult(resource.Map(0, &range, &pointer));
+			return static_cast<char*>(pointer);
+		}
+
+		void unmap(ID3D12Resource& resource)
+		{
+			const D3D12_RANGE range {};
+			resource.Unmap(0, &range);
+		}
+
+		auto load_geometry(ID3D12Device& device, gsl::czstring<> name)
+		{
+			const auto cube_object = load_wavefront(name);
+			const auto vertex_count = cube_object.positions.size();
+			const auto index_count = cube_object.faces.size() * cube_object.faces.front().size();
+			const auto vertex_bytes = vertex_count * sizeof(vector3);
+			const auto index_bytes = index_count * sizeof(unsigned int);
+			const auto buffer_size = index_bytes + vertex_bytes;
+			const auto buffer = create_object_buffer(device, gsl::narrow<unsigned int>(buffer_size));
+			const auto data_pointer = map(*buffer);
+			std::memcpy(data_pointer, cube_object.faces.data(), index_bytes);
+			std::memcpy(std::next(data_pointer, index_bytes), cube_object.positions.data(), vertex_bytes);
+			unmap(*buffer);
+
+			return loaded_geometry {
+				.buffer {buffer},
+				.index_view {
+					.BufferLocation {buffer->GetGPUVirtualAddress()},
+					.SizeInBytes {gsl::narrow<unsigned int>(index_bytes)},
+					.Format {DXGI_FORMAT_R32_UINT},
+				},
+				.vertex_view {
+					.BufferLocation {buffer->GetGPUVirtualAddress() + index_bytes},
+					.SizeInBytes {gsl::narrow<unsigned int>(vertex_bytes)},
+					.StrideInBytes {sizeof(vector3)},
+				},
+				.size {gsl::narrow<unsigned int>(index_count)},
+			};
+		}
 	}
 }
 
@@ -466,7 +515,8 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
-	m_projection_matrix {compute_projection(*m_swap_chain)}
+	m_projection_matrix {compute_projection(*m_swap_chain)},
+	m_cube {load_geometry(*m_device, "cube.wv")}
 {
 }
 
@@ -487,7 +537,7 @@ void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMA
 
 	case render_mode::object_view:
 		winrt::check_hresult(command_list.Reset(&allocator, m_pipelines.object_pipeline.get()));
-		record_object_view_commands(resources, m_root_signatures, view_matrix, m_projection_matrix);
+		record_object_view_commands(resources, m_root_signatures, view_matrix, m_projection_matrix, m_cube);
 		break;
 	}
 
