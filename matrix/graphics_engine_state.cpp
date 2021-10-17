@@ -141,7 +141,7 @@ namespace matrix {
 				},
 				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE},
 				.NumRenderTargets {1},
-				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM},
+				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
 				.DSVFormat {DXGI_FORMAT_D32_FLOAT},
 				.SampleDesc {.Count {1}},
 			};
@@ -182,7 +182,7 @@ namespace matrix {
 				.InputLayout {.pInputElementDescs {&position}, .NumElements {1}},
 				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE},
 				.NumRenderTargets {1},
-				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM},
+				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
 				.DSVFormat {DXGI_FORMAT_D32_FLOAT},
 				.SampleDesc {.Count {1}},
 			};
@@ -378,7 +378,7 @@ namespace matrix {
 			ID3D12Resource& backbuffer)
 		{
 			static constexpr D3D12_RENDER_TARGET_VIEW_DESC description {
-				.Format {DXGI_FORMAT_R8G8B8A8_UNORM},
+				.Format {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
 				.ViewDimension {D3D12_RTV_DIMENSION_TEXTURE2D},
 			};
 
