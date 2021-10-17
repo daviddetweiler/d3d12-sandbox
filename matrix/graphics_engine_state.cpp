@@ -154,8 +154,8 @@ namespace matrix {
 
 		auto create_object_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
 		{
-			const auto vertex_shader = load_compiled_shader(L"project.cso");
-			const auto pixel_shader = load_compiled_shader(L"all_white.cso");
+			const auto vertex_shader = load_compiled_shader(L"debug_colors.cso");
+			const auto pixel_shader = load_compiled_shader(L"vertex_color_passthrough.cso");
 			const D3D12_INPUT_ELEMENT_DESC position {
 				.SemanticName {"POSITION"},
 				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
