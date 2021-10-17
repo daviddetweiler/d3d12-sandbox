@@ -171,7 +171,7 @@ namespace matrix {
 				.SampleMask {D3D12_DEFAULT_SAMPLE_MASK},
 				.RasterizerState {
 					.FillMode {D3D12_FILL_MODE_SOLID},
-					.CullMode {D3D12_CULL_MODE_BACK},
+					.CullMode {D3D12_CULL_MODE_NONE},
 					.DepthClipEnable {true},
 				},
 				.DepthStencilState {
@@ -369,7 +369,7 @@ namespace matrix {
 		{
 			const auto extent = get_extent(swap_chain);
 			const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
-			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 10.0f);
+			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 50.0f);
 		}
 
 		void create_backbuffer_view(
@@ -516,7 +516,7 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
-	m_cube {load_geometry(*m_device, "cube.wv")}
+	m_object {load_geometry(*m_device, "bunny.wv")}
 {
 }
 
@@ -537,7 +537,7 @@ void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMA
 
 	case render_mode::object_view:
 		winrt::check_hresult(command_list.Reset(&allocator, m_pipelines.object_pipeline.get()));
-		record_object_view_commands(resources, m_root_signatures, view_matrix, m_projection_matrix, m_cube);
+		record_object_view_commands(resources, m_root_signatures, view_matrix, m_projection_matrix, m_object);
 		break;
 	}
 

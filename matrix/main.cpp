@@ -262,7 +262,7 @@ namespace matrix {
 		{
 			bool is_first_frame {true};
 			auto view_matrix = DirectX::XMMatrixIdentity();
-			render_mode type = render_mode::debug_grid;
+			render_mode type = render_mode::object_view;
 			graphics_engine_state renderer {host_window};
 			while (true) {
 				const auto& current_state = client_data.swap_buffers();
@@ -281,6 +281,7 @@ namespace matrix {
 
 						case VK_F11:
 							OutputDebugStringW(L"[note] not implemented yet\n");
+							renderer.signal_size_change();
 							break;
 
 						default:

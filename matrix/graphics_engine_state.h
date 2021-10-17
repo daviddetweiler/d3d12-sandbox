@@ -62,7 +62,7 @@ namespace matrix {
 		const winrt::com_ptr<ID3D12Fence> m_fence;
 
 		DirectX::XMMATRIX m_projection_matrix;
-		const loaded_geometry m_cube;
+		const loaded_geometry m_object;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
 

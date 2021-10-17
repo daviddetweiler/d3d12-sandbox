@@ -145,6 +145,7 @@
     <ClInclude Include="wavefront_loader.h" />
     <ResourceCompile Include="matrix.rc" />
     <Manifest Include="matrix.exe.manifest" />
+    <None Include="bunny.wv" />
     <None Include="colored_vertex.hlsli" />
     <None Include="cube.wv" />
     <None Include="packages.config" />
