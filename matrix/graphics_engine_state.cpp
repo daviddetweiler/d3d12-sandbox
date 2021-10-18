@@ -14,16 +14,23 @@ namespace matrix {
 				IsDebuggerPresent() ? DXGI_CREATE_FACTORY_DEBUG : 0);
 		}
 
+		GSL_SUPPRESS(bounds .3) // Needed for the adapter name field
 		auto create_gpu_device(IDXGIFactory6& dxgi_factory)
 		{
 			if (IsDebuggerPresent())
 				winrt::capture<ID3D12Debug>(D3D12GetDebugInterface)->EnableDebugLayer();
 
-			const auto selected_adapter = winrt::capture<IUnknown>(
+			const auto selected_adapter = winrt::capture<IDXGIAdapter>(
 				&dxgi_factory,
 				&IDXGIFactory6::EnumAdapterByGpuPreference,
 				0,
 				DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE);
+
+			DXGI_ADAPTER_DESC description;
+			winrt::check_hresult(selected_adapter->GetDesc(&description));
+			std::wstringstream message {};
+			message << "Selected adapter: " << description.Description << "\n";
+			OutputDebugStringW(message.str().c_str());
 
 			return winrt::capture<ID3D12Device4>(D3D12CreateDevice, selected_adapter.get(), D3D_FEATURE_LEVEL_12_1);
 		}
@@ -52,9 +59,6 @@ namespace matrix {
 				nullptr,
 				nullptr,
 				swap_chain.put()));
-
-			// We do not currently support exclusive-mode fullscreen
-			winrt::check_hresult(factory.MakeWindowAssociation(target_window, DXGI_MWA_NO_ALT_ENTER));
 
 			return swap_chain.as<IDXGISwapChain3>();
 		}
