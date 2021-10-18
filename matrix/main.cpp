@@ -27,20 +27,6 @@ namespace matrix {
 			LPARAM l;
 		};
 
-		class spinlock {
-		public:
-			void lock() noexcept
-			{
-				while (m_locked.test_and_set(std::memory_order_acquire))
-					_mm_pause();
-			}
-
-			void unlock() noexcept { m_locked.clear(); }
-
-		private:
-			std::atomic_flag m_locked = ATOMIC_FLAG_INIT;
-		};
-
 		struct host_client_data {
 			std::vector<input_event> input_events;
 			bool exit_requested;
@@ -59,42 +45,25 @@ namespace matrix {
 			host_atomic_state() noexcept :
 				m_client_data {},
 				m_for_host {&m_client_data.front()},
-				m_for_client {&m_client_data.back()},
-				m_swap_lock {}
+				m_for_client {&m_client_data.back()}
 			{
 			}
 
 			const auto& swap_buffers()
 			{
-				const std::lock_guard lock {m_swap_lock};
 				std::swap(m_for_host, m_for_client);
 				reset(*m_for_host);
 				return *m_for_client;
 			}
 
-			void enqueue(const input_event& event)
-			{
-				const std::lock_guard swap_lock {m_swap_lock};
-				m_for_host->input_events.emplace_back(event);
-			}
-
-			void request_exit()
-			{
-				const std::lock_guard swap_lock {m_swap_lock};
-				m_for_host->exit_requested = true;
-			}
-
-			void invalidate_size()
-			{
-				const std::lock_guard swap_lock {m_swap_lock};
-				m_for_host->size_invalidated = true;
-			}
+			void enqueue(const input_event& event) { m_for_host->input_events.emplace_back(event); }
+			void request_exit() { m_for_host->exit_requested = true; }
+			void invalidate_size() { m_for_host->size_invalidated = true; }
 
 		private:
 			std::array<host_client_data, 2> m_client_data;
 			gsl::not_null<host_client_data*> m_for_host;
 			gsl::not_null<host_client_data*> m_for_client;
-			spinlock m_swap_lock;
 		};
 
 		constexpr DWORD confirm_exit {WM_USER};
