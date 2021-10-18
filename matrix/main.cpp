@@ -254,11 +254,6 @@ namespace matrix {
 							type = type == render_mode::debug_grid ? render_mode::object_view : render_mode::debug_grid;
 							break;
 
-						case VK_F11:
-							OutputDebugStringW(L"[note] not implemented yet\n");
-							renderer.signal_size_change();
-							break;
-
 						default:
 							view_matrix *= map_to_camera_transform(event.w);
 							break;
