@@ -258,13 +258,19 @@ namespace matrix {
 			}
 		}
 
-		void do_client_thread(HWND host_window, host_atomic_state& client_data)
+		void do_update_loop(HWND host_window, host_atomic_state& client_data)
 		{
 			bool is_first_frame {true};
 			auto view_matrix = DirectX::XMMatrixIdentity();
 			render_mode type = render_mode::object_view;
 			graphics_engine_state renderer {host_window};
 			while (true) {
+				MSG message {};
+				while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+					TranslateMessage(&message);
+					DispatchMessageW(&message);
+				}
+
 				const auto& current_state = client_data.swap_buffers();
 				if (current_state.exit_requested)
 					break;
@@ -305,10 +311,7 @@ int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
 	matrix::host_atomic_state ui_state {};
 	const auto host_window = matrix::create_host_window(instance, ui_state);
-	const std::jthread client_thread {[&ui_state, host_window]() {
-		matrix::do_client_thread(host_window, ui_state);
-		SendMessageW(host_window, matrix::confirm_exit, 0, 0);
-	}};
-
+	matrix::do_update_loop(host_window, ui_state);
+	SendMessageW(host_window, matrix::confirm_exit, 0, 0);
 	return matrix::handle_messages_until_quit();
 }

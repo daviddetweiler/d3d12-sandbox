@@ -70,9 +70,35 @@ namespace matrix {
 				D3D12_FENCE_FLAG_NONE);
 		}
 
+		struct extent2d {
+			UINT width;
+			UINT height;
+		};
+
+		extent2d get_extent(IDXGISwapChain& swap_chain)
+		{
+			DXGI_SWAP_CHAIN_DESC description {};
+			winrt::check_hresult(swap_chain.GetDesc(&description));
+			return {.width {description.BufferDesc.Width}, .height {description.BufferDesc.Height}};
+		}
+
 		void resize(IDXGISwapChain& swap_chain)
 		{
-			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
+			DXGI_SWAP_CHAIN_DESC description;
+			winrt::check_hresult(swap_chain.GetDesc(&description));
+			RECT client;
+			winrt::check_bool(GetClientRect(description.OutputWindow, &client));
+			const auto width = client.right - client.left;
+			const auto height = client.bottom - client.top;
+			const auto size_before = get_extent(swap_chain);
+			winrt::check_hresult(swap_chain.ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0));
+			const auto size_after = get_extent(swap_chain);
+			std::wstringstream message {};
+			message << "Size changed\n";
+			message << "\tclient rectangle was (" << width << ", " << height << ")\n";
+			message << "\tformer size was (" << size_before.width << ", " << size_before.height << ")\n";
+			message << "\tlater size was (" << size_after.width << ", " << size_after.height << ")\n";
+			OutputDebugStringW(message.str().c_str());
 		}
 
 		auto
@@ -237,18 +263,6 @@ namespace matrix {
 			list.RSSetViewports(1, &viewport);
 		}
 
-		struct extent2d {
-			UINT width;
-			UINT height;
-		};
-
-		extent2d get_extent(IDXGISwapChain& swap_chain)
-		{
-			DXGI_SWAP_CHAIN_DESC description {};
-			winrt::check_hresult(swap_chain.GetDesc(&description));
-			return {.width {description.BufferDesc.Width}, .height {description.BufferDesc.Height}};
-		}
-
 		auto create_depth_buffer(ID3D12Device& device, D3D12_CPU_DESCRIPTOR_HANDLE dsv, const extent2d& size)
 		{
 			const D3D12_HEAP_PROPERTIES properties {.Type {D3D12_HEAP_TYPE_DEFAULT}};
@@ -368,6 +382,9 @@ namespace matrix {
 		DirectX::XMMATRIX compute_projection(IDXGISwapChain& swap_chain)
 		{
 			const auto extent = get_extent(swap_chain);
+			std::wstringstream message {};
+			message << "Projection recomputed (" << extent.width << ", " << extent.height << ")\n";
+			OutputDebugStringW(message.str().c_str());
 			const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
 			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 50.0f);
 		}

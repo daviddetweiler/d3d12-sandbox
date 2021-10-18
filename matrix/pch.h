@@ -10,6 +10,7 @@
 #include <iterator>
 #include <mutex>
 #include <numeric>
+#include <sstream>
 #include <string_view>
 #include <thread>
 #include <utility>
