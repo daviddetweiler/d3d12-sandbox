@@ -541,7 +541,7 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 {
 }
 
-GSL_SUPPRESS(f .6)
+GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
 matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
 void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMATRIX& view_matrix)

@@ -69,8 +69,8 @@ namespace matrix {
 		constexpr DWORD confirm_exit {WM_USER};
 		constexpr DWORD client_ready {WM_USER + 1};
 
-		GSL_SUPPRESS(type .1)
-		GSL_SUPPRESS(f .6)
+		GSL_SUPPRESS(type .1) // reinterpret_cast<>() is inherently required for some API operations
+		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on possible exceptions
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null client_data
@@ -110,7 +110,7 @@ namespace matrix {
 			}
 		}
 
-		GSL_SUPPRESS(type .1)
+		GSL_SUPPRESS(type .1) // Casts required by API
 		LRESULT handle_host_creation(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			switch (message) {
