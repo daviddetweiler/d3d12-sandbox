@@ -112,6 +112,7 @@ namespace matrix {
 			return winrt::capture<ID3D12DescriptorHeap>(&device, &ID3D12Device::CreateDescriptorHeap, &description);
 		}
 
+		GSL_SUPPRESS(lifetime) // not sure if false positive
 		D3D12_RESOURCE_BARRIER create_transition_barrier(
 			ID3D12Resource& resource,
 			D3D12_RESOURCE_STATES state_before,
