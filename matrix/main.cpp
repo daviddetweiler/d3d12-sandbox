@@ -16,7 +16,7 @@ namespace matrix {
 				DispatchMessageW(&next_message);
 			}
 
-			return gsl::narrow<int>(next_message.wParam);
+			return gsl::narrow_cast<int>(next_message.wParam);
 		}
 
 		enum class input_event_type { key_pressed, key_released };
@@ -49,7 +49,7 @@ namespace matrix {
 			{
 			}
 
-			const auto& swap_buffers()
+			const auto& swap_buffers() noexcept
 			{
 				std::swap(m_for_host, m_for_client);
 				reset(*m_for_host);
@@ -57,8 +57,8 @@ namespace matrix {
 			}
 
 			void enqueue(const input_event& event) { m_for_host->input_events.emplace_back(event); }
-			void request_exit() { m_for_host->exit_requested = true; }
-			void invalidate_size() { m_for_host->size_invalidated = true; }
+			void request_exit() noexcept { m_for_host->exit_requested = true; }
+			void invalidate_size() noexcept { m_for_host->size_invalidated = true; }
 
 		private:
 			std::array<host_client_data, 2> m_client_data;
@@ -69,9 +69,11 @@ namespace matrix {
 		constexpr DWORD confirm_exit {WM_USER};
 		constexpr DWORD client_ready {WM_USER + 1};
 
-		GSL_SUPPRESS(type .1) // reinterpret_cast<>() is inherently required for some API operations
-		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on possible exceptions
-		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
+		[[gsl::suppress(type .1)]] // reinterpret_cast<>() is inherently required for some API operations
+		[[gsl::suppress(f .6)]] // Caller cannot handle an exception being thrown, so we must call std::terminate() on
+								// possible exceptions
+		LRESULT
+		handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null client_data
 				= reinterpret_cast<host_atomic_state*>(GetWindowLongPtrW(window, GWLP_USERDATA));
@@ -110,13 +112,14 @@ namespace matrix {
 			}
 		}
 
-		GSL_SUPPRESS(type .1) // Casts required by API
-		LRESULT handle_host_creation(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
+		[[gsl::suppress(type .1)]] // Casts required by API
+		LRESULT
+		handle_host_creation(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			switch (message) {
 			case WM_CREATE: {
 				const gsl::not_null state = reinterpret_cast<LPCREATESTRUCTW>(l)->lpCreateParams;
-				SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state.get()));
+				SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(static_cast<void*>(state)));
 				SetWindowLongPtrW(window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(handle_host_update));
 				return 0;
 			}
@@ -157,29 +160,6 @@ namespace matrix {
 			vector3 minimum;
 			vector3 maximum;
 		};
-
-		constexpr bounding_box get_bounds(gsl::span<const vector3> vertices) noexcept
-		{
-			float minimum_x {};
-			float minimum_y {};
-			float minimum_z {};
-			float maximum_x {};
-			float maximum_y {};
-			float maximum_z {};
-			for (const auto& vertex : vertices) {
-				minimum_x = std::min(vertex.x, minimum_x);
-				minimum_y = std::min(vertex.y, minimum_y);
-				minimum_z = std::min(vertex.z, minimum_z);
-				maximum_x = std::max(vertex.x, maximum_x);
-				maximum_y = std::max(vertex.y, maximum_y);
-				maximum_z = std::max(vertex.z, maximum_z);
-			}
-
-			return {
-				.minimum {.x {minimum_x}, .y {minimum_y}, .z {minimum_z}},
-				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}},
-			};
-		}
 
 		DirectX::XMMATRIX map_to_camera_transform(WPARAM key)
 		{

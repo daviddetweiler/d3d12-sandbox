@@ -134,6 +134,7 @@
     <ClCompile Include="shader_loading.cpp" />
     <ClCompile Include="wavefront_loader.cpp" />
     <ClInclude Include="graphics_engine_state.h" />
+    <ClInclude Include="gsl.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="resource.h" />
     <ClCompile Include="graphics_engine_state.cpp" />
