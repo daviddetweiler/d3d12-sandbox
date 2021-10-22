@@ -2,8 +2,6 @@
 
 #include "pch.h"
 
-#include "gsl.h"
-
 namespace matrix {
 	struct vector3 {
 		float x;

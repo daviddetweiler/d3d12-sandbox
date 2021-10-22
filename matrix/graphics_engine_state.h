@@ -39,7 +39,7 @@ namespace matrix {
 		void update(render_mode type, const DirectX::XMMATRIX& view_matrix);
 		void signal_size_change();
 
-		[[gsl::suppress(f .6)]] // See function definition
+		GSL_SUPPRESS(f .6) // See function definition
 		~graphics_engine_state() noexcept;
 
 		graphics_engine_state(const graphics_engine_state&) = delete;

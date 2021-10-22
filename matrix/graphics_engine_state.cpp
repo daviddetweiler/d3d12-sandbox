@@ -14,9 +14,8 @@ namespace matrix {
 				IsDebuggerPresent() ? DXGI_CREATE_FACTORY_DEBUG : 0);
 		}
 
-		[[gsl::suppress(bounds .3)]] // Needed for the adapter name field
-		auto
-		create_gpu_device(IDXGIFactory6& dxgi_factory)
+		GSL_SUPPRESS(bounds .3) // Needed for the adapter name field
+		auto create_gpu_device(IDXGIFactory6& dxgi_factory)
 		{
 			if (IsDebuggerPresent())
 				winrt::capture<ID3D12Debug>(D3D12GetDebugInterface)->EnableDebugLayer();
@@ -113,9 +112,8 @@ namespace matrix {
 			return winrt::capture<ID3D12DescriptorHeap>(&device, &ID3D12Device::CreateDescriptorHeap, &description);
 		}
 
-		[[gsl::suppress(lifetime)]] // not sure if false positive
-		D3D12_RESOURCE_BARRIER
-		create_transition_barrier(
+		GSL_SUPPRESS(lifetime) // not sure if false positive
+		D3D12_RESOURCE_BARRIER create_transition_barrier(
 			ID3D12Resource& resource,
 			D3D12_RESOURCE_STATES state_before,
 			D3D12_RESOURCE_STATES state_after) noexcept
@@ -130,14 +128,14 @@ namespace matrix {
 		void execute_command_lists(ID3D12CommandQueue& queue, list_types&... command_lists)
 		{
 			std::array<ID3D12CommandList*, sizeof...(command_lists)> list_pointers {&command_lists...};
-			queue.ExecuteCommandLists(gsl::narrow_cast<UINT>(list_pointers.size()), list_pointers.data());
+			queue.ExecuteCommandLists(gsl::narrow<UINT>(list_pointers.size()), list_pointers.data());
 		}
 
 		template <typename... barrier_types>
 		void submit_resource_barriers(ID3D12GraphicsCommandList& command_list, barrier_types... barriers)
 		{
 			const std::array<D3D12_RESOURCE_BARRIER, sizeof...(barrier_types)> all_barriers {barriers...};
-			command_list.ResourceBarrier(gsl::narrow_cast<UINT>(all_barriers.size()), all_barriers.data());
+			command_list.ResourceBarrier(gsl::narrow<UINT>(all_barriers.size()), all_barriers.data());
 		}
 
 		void clear_render_target(
@@ -256,13 +254,13 @@ namespace matrix {
 		{
 			const auto info = target.GetDesc();
 			const D3D12_RECT scissor {
-				.right {gsl::narrow_cast<long>(info.Width)},
-				.bottom {gsl::narrow_cast<long>(info.Height)},
+				.right {gsl::narrow<long>(info.Width)},
+				.bottom {gsl::narrow<long>(info.Height)},
 			};
 
 			const D3D12_VIEWPORT viewport {
-				.Width {gsl::narrow_cast<float>(info.Width)},
-				.Height {gsl::narrow_cast<float>(info.Height)},
+				.Width {gsl::narrow<float>(info.Width)},
+				.Height {gsl::narrow<float>(info.Height)},
 				.MaxDepth {1.0f},
 			};
 
@@ -392,7 +390,7 @@ namespace matrix {
 			std::wstringstream message {};
 			message << "Projection recomputed (" << extent.width << ", " << extent.height << ")\n";
 			OutputDebugStringW(message.str().c_str());
-			const auto aspect = gsl::narrow_cast<float>(extent.width) / extent.height;
+			const auto aspect = gsl::narrow<float>(extent.width) / extent.height;
 			return DirectX::XMMatrixPerspectiveFovLH(3.141f / 2.0f, aspect, 0.01f, 50.0f);
 		}
 
@@ -499,7 +497,7 @@ namespace matrix {
 			const auto vertex_bytes = vertex_count * sizeof(vector3);
 			const auto index_bytes = index_count * sizeof(unsigned int);
 			const auto buffer_size = index_bytes + vertex_bytes;
-			const auto buffer = create_object_buffer(device, gsl::narrow_cast<unsigned int>(buffer_size));
+			const auto buffer = create_object_buffer(device, gsl::narrow<unsigned int>(buffer_size));
 			const auto data_pointer = map(*buffer);
 			std::memcpy(data_pointer, cube_object.faces.data(), index_bytes);
 			std::memcpy(std::next(data_pointer, index_bytes), cube_object.positions.data(), vertex_bytes);
@@ -509,15 +507,15 @@ namespace matrix {
 				.buffer {buffer},
 				.index_view {
 					.BufferLocation {buffer->GetGPUVirtualAddress()},
-					.SizeInBytes {gsl::narrow_cast<unsigned int>(index_bytes)},
+					.SizeInBytes {gsl::narrow<unsigned int>(index_bytes)},
 					.Format {DXGI_FORMAT_R32_UINT},
 				},
 				.vertex_view {
 					.BufferLocation {buffer->GetGPUVirtualAddress() + index_bytes},
-					.SizeInBytes {gsl::narrow_cast<unsigned int>(vertex_bytes)},
+					.SizeInBytes {gsl::narrow<unsigned int>(vertex_bytes)},
 					.StrideInBytes {sizeof(vector3)},
 				},
-				.size {gsl::narrow_cast<unsigned int>(index_count)},
+				.size {gsl::narrow<unsigned int>(index_count)},
 			};
 		}
 	}
@@ -544,8 +542,8 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 {
 }
 
-// Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
-[[gsl::suppress(f .6)]] matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
+GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
+matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
 void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMATRIX& view_matrix)
 {
