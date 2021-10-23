@@ -70,10 +70,10 @@
     <Text Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Manifest Include="matrix.exe.manifest" />
+    <Manifest Include="runtime.exe.manifest" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="matrix.rc">
+    <ResourceCompile Include="runtime.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

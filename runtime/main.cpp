@@ -3,7 +3,7 @@
 #include "graphics_engine_state.h"
 #include "wavefront_loader.h"
 
-namespace matrix {
+namespace d3d12_sandbox {
 	namespace {
 		int handle_messages_until_quit()
 		{
@@ -133,7 +133,7 @@ namespace matrix {
 				.lpfnWndProc {handle_host_creation},
 				.hInstance {instance},
 				.hCursor {winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW))},
-				.lpszClassName {L"matrix::host_window"},
+				.lpszClassName {L"d3d12_sandbox::host_window"},
 			};
 
 			winrt::check_bool(RegisterClassExW(&window_class));
@@ -273,9 +273,9 @@ namespace matrix {
 
 int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
 {
-	matrix::host_atomic_state ui_state {};
-	const auto host_window = matrix::create_host_window(instance, ui_state);
-	matrix::do_update_loop(host_window, ui_state);
-	SendMessageW(host_window, matrix::confirm_exit, 0, 0);
-	return matrix::handle_messages_until_quit();
+	d3d12_sandbox::host_atomic_state ui_state {};
+	const auto host_window = d3d12_sandbox::create_host_window(instance, ui_state);
+	d3d12_sandbox::do_update_loop(host_window, ui_state);
+	SendMessageW(host_window, d3d12_sandbox::confirm_exit, 0, 0);
+	return d3d12_sandbox::handle_messages_until_quit();
 }

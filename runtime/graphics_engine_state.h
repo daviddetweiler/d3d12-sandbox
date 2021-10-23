@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-namespace matrix {
+namespace d3d12_sandbox {
 	struct per_frame_resources {
 		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
 		winrt::com_ptr<ID3D12GraphicsCommandList> command_list {};
