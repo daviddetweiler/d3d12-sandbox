@@ -70,7 +70,8 @@ namespace d3d12_sandbox {
 		constexpr DWORD client_ready {WM_USER + 1};
 
 		GSL_SUPPRESS(type .1) // reinterpret_cast<>() is inherently required for some API operations
-		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on possible exceptions
+		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on
+						   // possible exceptions
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null client_data
@@ -271,7 +272,7 @@ namespace d3d12_sandbox {
 	}
 }
 
-int wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int)
+int wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
 	d3d12_sandbox::host_atomic_state ui_state {};
 	const auto host_window = d3d12_sandbox::create_host_window(instance, ui_state);

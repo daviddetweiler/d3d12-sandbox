@@ -18,11 +18,13 @@
 
 #include <intrin.h>
 
-#include <windows.h>
+#include <Windows.h>
 
 #include <DirectXMath.h>
 #include <d3d12.h>
 #include <d3d12sdklayers.h>
 #include <dxgi1_6.h>
+
+#include <sal.h>
 
 #include <winrt/base.h>

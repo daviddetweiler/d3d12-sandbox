@@ -6,7 +6,6 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8ED907EC-CD3D-4706-84D0-EF8F9E795712}"
 	ProjectSection(SolutionItems) = preProject
 		.clang-format = .clang-format
-		cppcoreguidelines.ruleset = cppcoreguidelines.ruleset
 		design.md = design.md
 	EndProjectSection
 EndProject
