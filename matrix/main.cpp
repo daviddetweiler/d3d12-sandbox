@@ -70,7 +70,8 @@ namespace matrix {
 		constexpr DWORD client_ready {WM_USER + 1};
 
 		GSL_SUPPRESS(type .1) // reinterpret_cast<>() is inherently required for some API operations
-		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on possible exceptions
+		GSL_SUPPRESS(f .6) // Caller cannot handle an exception being thrown, so we must call std::terminate() on
+						   // possible exceptions
 		LRESULT handle_host_update(HWND window, UINT message, WPARAM w, LPARAM l) noexcept
 		{
 			const gsl::not_null client_data
@@ -233,7 +234,11 @@ namespace matrix {
 			auto view_matrix = DirectX::XMMatrixIdentity();
 			render_mode type = render_mode::object_view;
 			graphics_engine_state renderer {host_window};
+			bool snapshot {};
 			while (true) {
+				using clock = std::chrono::high_resolution_clock;
+				const auto start = clock::now();
+
 				MSG message {};
 				while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
 					TranslateMessage(&message);
@@ -254,6 +259,10 @@ namespace matrix {
 							type = type == render_mode::debug_grid ? render_mode::object_view : render_mode::debug_grid;
 							break;
 
+						case VK_ESCAPE:
+							snapshot = true;
+							break;
+
 						default:
 							view_matrix *= map_to_camera_transform(event.w);
 							break;
@@ -265,6 +274,14 @@ namespace matrix {
 				if (is_first_frame) {
 					SendMessageW(host_window, client_ready, 0, 0);
 					is_first_frame = false;
+				}
+
+				const auto stop = clock::now();
+				if (snapshot) {
+					std::wstringstream debug_message {};
+					debug_message << std::chrono::duration_cast<std::chrono::microseconds>(stop - start) << "\n";
+					OutputDebugStringW(debug_message.str().c_str());
+					snapshot = false;
 				}
 			}
 		}

@@ -63,7 +63,7 @@ namespace matrix {
 			return swap_chain.as<IDXGISwapChain3>();
 		}
 
-		void present(IDXGISwapChain& swap_chain) { winrt::check_hresult(swap_chain.Present(1, 0)); }
+		void present(IDXGISwapChain& swap_chain) { winrt::check_hresult(swap_chain.Present(0, 0)); }
 
 		auto create_fence(ID3D12Device& device, std::uint64_t initial_value)
 		{
@@ -202,7 +202,7 @@ namespace matrix {
 				.SampleMask {D3D12_DEFAULT_SAMPLE_MASK},
 				.RasterizerState {
 					.FillMode {D3D12_FILL_MODE_SOLID},
-					.CullMode {D3D12_CULL_MODE_NONE},
+					.CullMode {D3D12_CULL_MODE_BACK},
 					.DepthClipEnable {true},
 				},
 				.DepthStencilState {
