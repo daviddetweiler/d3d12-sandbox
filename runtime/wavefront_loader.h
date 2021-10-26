@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-namespace matrix {
+namespace d3d12_sandbox {
 	struct vector3 {
 		float x;
 		float y;

@@ -5,7 +5,7 @@
 #include "shader_loading.h"
 #include "wavefront_loader.h"
 
-namespace matrix {
+namespace d3d12_sandbox {
 	namespace {
 		auto create_dxgi_factory()
 		{
@@ -521,12 +521,12 @@ namespace matrix {
 	}
 }
 
-matrix::graphics_engine_state::graphics_engine_state(HWND target_window) :
+d3d12_sandbox::graphics_engine_state::graphics_engine_state(HWND target_window) :
 	graphics_engine_state {*create_dxgi_factory(), target_window}
 {
 }
 
-matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWND target_window) :
+d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWND target_window) :
 	m_device {create_gpu_device(factory)},
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
@@ -543,9 +543,9 @@ matrix::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWN
 }
 
 GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
-matrix::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
+d3d12_sandbox::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
-void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMATRIX& view_matrix)
+void d3d12_sandbox::graphics_engine_state::update(render_mode type, const DirectX::XMMATRIX& view_matrix)
 {
 	const auto& resources = wait_for_frame();
 	auto& allocator = *resources.allocator;
@@ -570,7 +570,7 @@ void matrix::graphics_engine_state::update(render_mode type, const DirectX::XMMA
 	signal_frame_submission();
 }
 
-void matrix::graphics_engine_state::signal_size_change()
+void d3d12_sandbox::graphics_engine_state::signal_size_change()
 {
 	wait_for_idle();
 	m_frame_resources = {};
@@ -579,13 +579,13 @@ void matrix::graphics_engine_state::signal_size_change()
 	m_projection_matrix = compute_projection(*m_swap_chain);
 }
 
-void matrix::graphics_engine_state::wait_for_idle()
+void d3d12_sandbox::graphics_engine_state::wait_for_idle()
 {
 	while (m_fence->GetCompletedValue() < m_fence_current_value)
 		_mm_pause();
 }
 
-const matrix::per_frame_resources& matrix::graphics_engine_state::wait_for_frame()
+const d3d12_sandbox::per_frame_resources& d3d12_sandbox::graphics_engine_state::wait_for_frame()
 {
 	while (m_fence->GetCompletedValue() < m_fence_current_value - 1)
 		_mm_pause();
@@ -593,7 +593,7 @@ const matrix::per_frame_resources& matrix::graphics_engine_state::wait_for_frame
 	return m_frame_resources.at(m_swap_chain->GetCurrentBackBufferIndex());
 }
 
-void matrix::graphics_engine_state::signal_frame_submission()
+void d3d12_sandbox::graphics_engine_state::signal_frame_submission()
 {
 	winrt::check_hresult(m_queue->Signal(m_fence.get(), ++m_fence_current_value));
 }
