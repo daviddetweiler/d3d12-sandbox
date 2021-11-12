@@ -154,34 +154,6 @@ namespace d3d12_sandbox {
 				&state));
 		}
 
-		struct bounding_box {
-			vector3 minimum;
-			vector3 maximum;
-		};
-
-		constexpr bounding_box get_bounds(gsl::span<const vector3> vertices) noexcept
-		{
-			float minimum_x {};
-			float minimum_y {};
-			float minimum_z {};
-			float maximum_x {};
-			float maximum_y {};
-			float maximum_z {};
-			for (const auto& vertex : vertices) {
-				minimum_x = std::min(vertex.x, minimum_x);
-				minimum_y = std::min(vertex.y, minimum_y);
-				minimum_z = std::min(vertex.z, minimum_z);
-				maximum_x = std::max(vertex.x, maximum_x);
-				maximum_y = std::max(vertex.y, maximum_y);
-				maximum_z = std::max(vertex.z, maximum_z);
-			}
-
-			return {
-				.minimum {.x {minimum_x}, .y {minimum_y}, .z {minimum_z}},
-				.maximum {.x {maximum_x}, .y {maximum_y}, .z {maximum_z}},
-			};
-		}
-
 		DirectX::XMMATRIX map_to_camera_transform(WPARAM key)
 		{
 			static constexpr auto linear_speed = 0.03f;
@@ -228,6 +200,15 @@ namespace d3d12_sandbox {
 			}
 		}
 
+		void flush_message_queue() noexcept
+		{
+			MSG message {};
+			while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
+				TranslateMessage(&message);
+				DispatchMessageW(&message);
+			}
+		}
+
 		void do_update_loop(HWND host_window, host_atomic_state& client_data)
 		{
 			bool is_first_frame {true};
@@ -239,12 +220,7 @@ namespace d3d12_sandbox {
 				using clock = std::chrono::high_resolution_clock;
 				const auto start = clock::now();
 
-				MSG message {};
-				while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE)) {
-					TranslateMessage(&message);
-					DispatchMessageW(&message);
-				}
-
+				flush_message_queue();
 				const auto& current_state = client_data.swap_buffers();
 				if (current_state.exit_requested)
 					break;
@@ -270,7 +246,7 @@ namespace d3d12_sandbox {
 					}
 				}
 
-				renderer.update(type, view_matrix);
+				renderer.render(type, view_matrix);
 				if (is_first_frame) {
 					SendMessageW(host_window, client_ready, 0, 0);
 					is_first_frame = false;

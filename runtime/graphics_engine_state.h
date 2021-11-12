@@ -5,7 +5,6 @@
 namespace d3d12_sandbox {
 	struct per_frame_resources {
 		winrt::com_ptr<ID3D12CommandAllocator> allocator {};
-		winrt::com_ptr<ID3D12GraphicsCommandList> command_list {};
 
 		// Swap chain dependent
 
@@ -36,7 +35,7 @@ namespace d3d12_sandbox {
 	class graphics_engine_state {
 	public:
 		graphics_engine_state(HWND target_window);
-		void update(render_mode type, const DirectX::XMMATRIX& view_matrix);
+		void render(render_mode type, const DirectX::XMMATRIX& view_matrix);
 		void signal_size_change();
 
 		GSL_SUPPRESS(f .6) // See function definition
@@ -55,6 +54,7 @@ namespace d3d12_sandbox {
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_dsv_heap;
 		const root_signature_table m_root_signatures;
 		const pipeline_state_table m_pipelines;
+		const winrt::com_ptr<ID3D12GraphicsCommandList> m_command_list {};
 
 		std::array<per_frame_resources, 2> m_frame_resources;
 

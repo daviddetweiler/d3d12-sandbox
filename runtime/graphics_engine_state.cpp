@@ -7,17 +7,19 @@
 
 namespace d3d12_sandbox {
 	namespace {
+		constexpr auto enable_api_debugging = false;
+
 		auto create_dxgi_factory()
 		{
 			return winrt::capture<IDXGIFactory6>(
 				CreateDXGIFactory2,
-				IsDebuggerPresent() ? DXGI_CREATE_FACTORY_DEBUG : 0);
+				enable_api_debugging ? DXGI_CREATE_FACTORY_DEBUG : 0);
 		}
 
 		GSL_SUPPRESS(bounds .3) // Needed for the adapter name field
 		auto create_gpu_device(IDXGIFactory6& dxgi_factory)
 		{
-			if (IsDebuggerPresent())
+			if (enable_api_debugging)
 				winrt::capture<ID3D12Debug>(D3D12GetDebugInterface)->EnableDebugLayer();
 
 			const auto selected_adapter = winrt::capture<IDXGIAdapter>(
@@ -317,12 +319,12 @@ namespace d3d12_sandbox {
 
 		// TODO: should I be moved in-class?
 		void record_debug_grid_commands(
+			ID3D12GraphicsCommandList& command_list,
 			const per_frame_resources& resources,
 			const root_signature_table& root_signatures,
 			const DirectX::XMMATRIX& view,
 			const DirectX::XMMATRIX& projection)
 		{
-			auto& command_list = *resources.command_list;
 			auto& backbuffer = *resources.backbuffer;
 			const auto& backbuffer_view = resources.backbuffer_view;
 			const auto depth_buffer_view = resources.depth_buffer_view;
@@ -350,13 +352,13 @@ namespace d3d12_sandbox {
 
 		// TODO: should I be moved in-class?
 		void record_object_view_commands(
+			ID3D12GraphicsCommandList& command_list,
 			const per_frame_resources& resources,
 			const root_signature_table& root_signatures,
 			const DirectX::XMMATRIX& view,
 			const DirectX::XMMATRIX& projection,
 			const loaded_geometry& object)
 		{
-			auto& command_list = *resources.command_list;
 			auto& backbuffer = *resources.backbuffer;
 			const auto& backbuffer_view = resources.backbuffer_view;
 			const auto depth_buffer_view = resources.depth_buffer_view;
@@ -429,16 +431,8 @@ namespace d3d12_sandbox {
 					&ID3D12Device::CreateCommandAllocator,
 					D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-				auto command_list = winrt::capture<ID3D12GraphicsCommandList>(
-					&device,
-					&ID3D12Device4::CreateCommandList1,
-					0,
-					D3D12_COMMAND_LIST_TYPE_DIRECT,
-					D3D12_COMMAND_LIST_FLAG_NONE);
-
 				frame_resources.at(i) = per_frame_resources {
 					.allocator {std::move(command_allocator)},
-					.command_list {std::move(command_list)},
 					.backbuffer_view {render_view_handle},
 					.backbuffer {std::move(backbuffer)},
 					.depth_buffer_view {depth_view_handle},
@@ -534,6 +528,12 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2)},
 	m_root_signatures {create_root_signatures(*m_device)},
 	m_pipelines {create_pipeline_states(*m_device, m_root_signatures)},
+	m_command_list {winrt::capture<ID3D12GraphicsCommandList>(
+		m_device,
+		&ID3D12Device4::CreateCommandList1,
+		0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		D3D12_COMMAND_LIST_FLAG_NONE)},
 	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
@@ -545,27 +545,33 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
 d3d12_sandbox::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
-void d3d12_sandbox::graphics_engine_state::update(render_mode type, const DirectX::XMMATRIX& view_matrix)
+void d3d12_sandbox::graphics_engine_state::render(render_mode type, const DirectX::XMMATRIX& view_matrix)
 {
 	const auto& resources = wait_for_frame();
 	auto& allocator = *resources.allocator;
-	auto& command_list = *resources.command_list;
 	winrt::check_hresult(resources.allocator->Reset());
 	switch (type) {
 	case render_mode::debug_grid:
-		winrt::check_hresult(command_list.Reset(&allocator, m_pipelines.debug_grid_pipeline.get()));
-		record_debug_grid_commands(resources, m_root_signatures, view_matrix, m_projection_matrix);
+		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.debug_grid_pipeline.get()));
+		record_debug_grid_commands(*m_command_list, resources, m_root_signatures, view_matrix, m_projection_matrix);
 		break;
 
 	case render_mode::object_view:
-		winrt::check_hresult(command_list.Reset(&allocator, m_pipelines.object_pipeline.get()));
-		record_object_view_commands(resources, m_root_signatures, view_matrix, m_projection_matrix, m_object);
+		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.object_pipeline.get()));
+		record_object_view_commands(
+			*m_command_list,
+			resources,
+			m_root_signatures,
+			view_matrix,
+			m_projection_matrix,
+			m_object);
+
 		break;
 	}
 
-	winrt::check_hresult(command_list.Close());
+	winrt::check_hresult(m_command_list->Close());
 
-	execute_command_lists(*m_queue, command_list);
+	execute_command_lists(*m_queue, *m_command_list);
 	present(*m_swap_chain);
 	signal_frame_submission();
 }
