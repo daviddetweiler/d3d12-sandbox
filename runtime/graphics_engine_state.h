@@ -10,8 +10,6 @@ namespace d3d12_sandbox {
 
 		D3D12_CPU_DESCRIPTOR_HANDLE backbuffer_view {};
 		winrt::com_ptr<ID3D12Resource> backbuffer {};
-		D3D12_CPU_DESCRIPTOR_HANDLE depth_buffer_view {};
-		winrt::com_ptr<ID3D12Resource> depth_buffer {};
 	};
 
 	struct root_signature_table {
@@ -55,6 +53,8 @@ namespace d3d12_sandbox {
 		const root_signature_table m_root_signatures;
 		const pipeline_state_table m_pipelines;
 		const winrt::com_ptr<ID3D12GraphicsCommandList> m_command_list {};
+		const D3D12_CPU_DESCRIPTOR_HANDLE m_depth_buffer_view {};
+		winrt::com_ptr<ID3D12Resource> m_depth_buffer {};
 
 		std::array<per_frame_resources, 2> m_frame_resources;
 
@@ -69,5 +69,12 @@ namespace d3d12_sandbox {
 		void wait_for_idle();
 		const per_frame_resources& wait_for_frame();
 		void signal_frame_submission();
+
+		void record_debug_grid_commands(const per_frame_resources& resources, const DirectX::XMMATRIX& view);
+
+		void record_object_view_commands(
+			const per_frame_resources& resources,
+			const DirectX::XMMATRIX& view,
+			const loaded_geometry& object);
 	};
 }

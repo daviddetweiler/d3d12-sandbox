@@ -90,21 +90,7 @@ namespace d3d12_sandbox {
 
 		void resize(IDXGISwapChain& swap_chain)
 		{
-			DXGI_SWAP_CHAIN_DESC description;
-			winrt::check_hresult(swap_chain.GetDesc(&description));
-			RECT client;
-			winrt::check_bool(GetClientRect(description.OutputWindow, &client));
-			const auto width = client.right - client.left;
-			const auto height = client.bottom - client.top;
-			const auto size_before = get_extent(swap_chain);
-			winrt::check_hresult(swap_chain.ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0));
-			const auto size_after = get_extent(swap_chain);
-			std::wstringstream message {};
-			message << "Size changed\n";
-			message << "\tclient rectangle was (" << width << ", " << height << ")\n";
-			message << "\tformer size was (" << size_before.width << ", " << size_before.height << ")\n";
-			message << "\tlater size was (" << size_after.width << ", " << size_after.height << ")\n";
-			OutputDebugStringW(message.str().c_str());
+			winrt::check_hresult(swap_chain.ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0));
 		}
 
 		auto
@@ -317,75 +303,6 @@ namespace d3d12_sandbox {
 			};
 		}
 
-		// TODO: should I be moved in-class?
-		void record_debug_grid_commands(
-			ID3D12GraphicsCommandList& command_list,
-			const per_frame_resources& resources,
-			const root_signature_table& root_signatures,
-			const DirectX::XMMATRIX& view,
-			const DirectX::XMMATRIX& projection)
-		{
-			auto& backbuffer = *resources.backbuffer;
-			const auto& backbuffer_view = resources.backbuffer_view;
-			const auto depth_buffer_view = resources.depth_buffer_view;
-
-			command_list.SetGraphicsRootSignature(root_signatures.default_signature.get());
-			command_list.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
-			command_list.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
-
-			command_list.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			maximize_rasterizer(command_list, backbuffer);
-			command_list.OMSetRenderTargets(1, &backbuffer_view, false, &depth_buffer_view);
-
-			command_list.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-			submit_resource_barriers(
-				command_list,
-				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-			clear_render_target(command_list, backbuffer_view);
-			command_list.DrawInstanced(2, 18, 0, 0);
-			submit_resource_barriers(
-				command_list,
-				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
-		}
-
-		// TODO: should I be moved in-class?
-		void record_object_view_commands(
-			ID3D12GraphicsCommandList& command_list,
-			const per_frame_resources& resources,
-			const root_signature_table& root_signatures,
-			const DirectX::XMMATRIX& view,
-			const DirectX::XMMATRIX& projection,
-			const loaded_geometry& object)
-		{
-			auto& backbuffer = *resources.backbuffer;
-			const auto& backbuffer_view = resources.backbuffer_view;
-			const auto depth_buffer_view = resources.depth_buffer_view;
-
-			command_list.SetGraphicsRootSignature(root_signatures.default_signature.get());
-			command_list.SetGraphicsRoot32BitConstants(0, 16, &view, 0);
-			command_list.SetGraphicsRoot32BitConstants(0, 16, &projection, 16);
-
-			command_list.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			command_list.IASetIndexBuffer(&object.index_view);
-			command_list.IASetVertexBuffers(0, 1, &object.vertex_view);
-			maximize_rasterizer(command_list, backbuffer);
-			command_list.OMSetRenderTargets(1, &backbuffer_view, false, &depth_buffer_view);
-
-			command_list.ClearDepthStencilView(depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-			submit_resource_barriers(
-				command_list,
-				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
-
-			clear_render_target(command_list, backbuffer_view);
-			command_list.DrawIndexedInstanced(object.size, 1, 0, 0, 0);
-			submit_resource_barriers(
-				command_list,
-				create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
-		}
-
 		DirectX::XMMATRIX compute_projection(IDXGISwapChain& swap_chain)
 		{
 			const auto extent = get_extent(swap_chain);
@@ -410,19 +327,12 @@ namespace d3d12_sandbox {
 		}
 
 		// TODO: not all of these resources need to be recreated every time the size changes
-		auto create_frame_resources(
-			ID3D12Device4& device,
-			ID3D12DescriptorHeap& rtv_heap,
-			ID3D12DescriptorHeap& dsv_heap,
-			IDXGISwapChain& swap_chain)
+		auto create_frame_resources(ID3D12Device4& device, ID3D12DescriptorHeap& rtv_heap, IDXGISwapChain& swap_chain)
 		{
 			const auto render_handle_size = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			const auto depth_handle_size = device.GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 			auto render_view_handle = rtv_heap.GetCPUDescriptorHandleForHeapStart();
-			auto depth_view_handle = dsv_heap.GetCPUDescriptorHandleForHeapStart();
 			std::array<per_frame_resources, 2> frame_resources {};
 			for (unsigned int i {}; i < 2; ++i) {
-				auto depth_buffer = create_depth_buffer(device, depth_view_handle, get_extent(swap_chain));
 				auto backbuffer = winrt::capture<ID3D12Resource>(&swap_chain, &IDXGISwapChain::GetBuffer, i);
 				create_backbuffer_view(device, render_view_handle, *backbuffer);
 
@@ -434,13 +344,9 @@ namespace d3d12_sandbox {
 				frame_resources.at(i) = per_frame_resources {
 					.allocator {std::move(command_allocator)},
 					.backbuffer_view {render_view_handle},
-					.backbuffer {std::move(backbuffer)},
-					.depth_buffer_view {depth_view_handle},
-					.depth_buffer {std::move(depth_buffer)},
-				};
+					.backbuffer {std::move(backbuffer)}};
 
 				render_view_handle.ptr += render_handle_size;
-				depth_view_handle.ptr += depth_handle_size;
 			}
 
 			return frame_resources;
@@ -496,7 +402,6 @@ namespace d3d12_sandbox {
 			std::memcpy(data_pointer, cube_object.faces.data(), index_bytes);
 			std::memcpy(std::next(data_pointer, index_bytes), cube_object.positions.data(), vertex_bytes);
 			unmap(*buffer);
-
 			return loaded_geometry {
 				.buffer {buffer},
 				.index_view {
@@ -525,7 +430,7 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
 	m_rtv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2)},
-	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 2)},
+	m_dsv_heap {create_descriptor_heap(*m_device, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1)},
 	m_root_signatures {create_root_signatures(*m_device)},
 	m_pipelines {create_pipeline_states(*m_device, m_root_signatures)},
 	m_command_list {winrt::capture<ID3D12GraphicsCommandList>(
@@ -534,7 +439,9 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		D3D12_COMMAND_LIST_FLAG_NONE)},
-	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain)},
+	m_depth_buffer_view {m_dsv_heap->GetCPUDescriptorHandleForHeapStart()},
+	m_depth_buffer {create_depth_buffer(*m_device, m_depth_buffer_view, get_extent(*m_swap_chain))},
+	m_frame_resources {create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain)},
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
@@ -553,19 +460,12 @@ void d3d12_sandbox::graphics_engine_state::render(render_mode type, const Direct
 	switch (type) {
 	case render_mode::debug_grid:
 		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.debug_grid_pipeline.get()));
-		record_debug_grid_commands(*m_command_list, resources, m_root_signatures, view_matrix, m_projection_matrix);
+		record_debug_grid_commands(resources, view_matrix);
 		break;
 
 	case render_mode::object_view:
 		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.object_pipeline.get()));
-		record_object_view_commands(
-			*m_command_list,
-			resources,
-			m_root_signatures,
-			view_matrix,
-			m_projection_matrix,
-			m_object);
-
+		record_object_view_commands(resources, view_matrix, m_object);
 		break;
 	}
 
@@ -581,7 +481,8 @@ void d3d12_sandbox::graphics_engine_state::signal_size_change()
 	wait_for_idle();
 	m_frame_resources = {};
 	resize(*m_swap_chain);
-	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_dsv_heap, *m_swap_chain);
+	m_frame_resources = create_frame_resources(*m_device, *m_rtv_heap, *m_swap_chain);
+	m_depth_buffer = create_depth_buffer(*m_device, m_depth_buffer_view, get_extent(*m_swap_chain));
 	m_projection_matrix = compute_projection(*m_swap_chain);
 }
 
@@ -602,4 +503,65 @@ const d3d12_sandbox::per_frame_resources& d3d12_sandbox::graphics_engine_state::
 void d3d12_sandbox::graphics_engine_state::signal_frame_submission()
 {
 	winrt::check_hresult(m_queue->Signal(m_fence.get(), ++m_fence_current_value));
+}
+
+// TODO: should I be moved in-class?
+void d3d12_sandbox::graphics_engine_state::record_debug_grid_commands(
+	const per_frame_resources& resources,
+	const DirectX::XMMATRIX& view)
+{
+	auto& backbuffer = *resources.backbuffer;
+	const auto& backbuffer_view = resources.backbuffer_view;
+
+	m_command_list->SetGraphicsRootSignature(m_root_signatures.default_signature.get());
+	m_command_list->SetGraphicsRoot32BitConstants(0, 16, &view, 0);
+	m_command_list->SetGraphicsRoot32BitConstants(0, 16, &m_projection_matrix, 16);
+
+	m_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+	maximize_rasterizer(*m_command_list, backbuffer);
+	m_command_list->OMSetRenderTargets(1, &backbuffer_view, false, &m_depth_buffer_view);
+
+	m_command_list->ClearDepthStencilView(m_depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	submit_resource_barriers(
+		*m_command_list,
+		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	clear_render_target(*m_command_list, backbuffer_view);
+	m_command_list->DrawInstanced(2, 18, 0, 0);
+	submit_resource_barriers(
+		*m_command_list,
+		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
+}
+
+// TODO: should I be moved in-class?
+void d3d12_sandbox::graphics_engine_state::record_object_view_commands(
+	const per_frame_resources& resources,
+	const DirectX::XMMATRIX& view,
+	const loaded_geometry& object)
+{
+	auto& backbuffer = *resources.backbuffer;
+	const auto& backbuffer_view = resources.backbuffer_view;
+
+	m_command_list->SetGraphicsRootSignature(m_root_signatures.default_signature.get());
+	m_command_list->SetGraphicsRoot32BitConstants(0, 16, &view, 0);
+	m_command_list->SetGraphicsRoot32BitConstants(0, 16, &m_projection_matrix, 16);
+
+	m_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_command_list->IASetIndexBuffer(&object.index_view);
+	m_command_list->IASetVertexBuffers(0, 1, &object.vertex_view);
+	maximize_rasterizer(*m_command_list, backbuffer);
+	m_command_list->OMSetRenderTargets(1, &backbuffer_view, false, &m_depth_buffer_view);
+
+	m_command_list->ClearDepthStencilView(m_depth_buffer_view, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	submit_resource_barriers(
+		*m_command_list,
+		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	clear_render_target(*m_command_list, backbuffer_view);
+	m_command_list->DrawIndexedInstanced(object.size, 1, 0, 0, 0);
+	submit_resource_barriers(
+		*m_command_list,
+		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));
 }
