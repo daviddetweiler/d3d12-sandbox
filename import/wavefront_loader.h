@@ -2,7 +2,7 @@
 
 #include "pch.h"
 
-namespace d3d12_sandbox {
+namespace importer {
 	struct vector3 {
 		float x;
 		float y;
@@ -11,6 +11,7 @@ namespace d3d12_sandbox {
 
 	struct vertex {
 		unsigned int position;
+		unsigned int normal;
 	};
 
 	struct triangle {

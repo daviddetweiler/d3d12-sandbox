@@ -2,7 +2,7 @@
 
 #include "wavefront_loader.h"
 
-namespace d3d12_sandbox {
+namespace importer {
 	namespace {
 		template <char delimiter, typename iterator_type>
 		std::string_view get_next_token(iterator_type& iterator, const iterator_type& last) noexcept
@@ -36,13 +36,12 @@ namespace d3d12_sandbox {
 			const auto stop = vertex_string.cend();
 			const auto position = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
 			const auto normal = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
-			static_cast<void>(normal);
-			return vertex {.position {position}};
+			return vertex {.position {position}, .normal {normal}};
 		}
 	}
 }
 
-d3d12_sandbox::wavefront d3d12_sandbox::load_wavefront(gsl::czstring<> name)
+importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 {
 	std::ifstream object_file {name, object_file.ate | object_file.binary};
 	object_file.exceptions(object_file.badbit | object_file.failbit);
