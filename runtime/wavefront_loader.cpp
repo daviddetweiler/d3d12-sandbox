@@ -29,6 +29,16 @@ namespace d3d12_sandbox {
 			std::from_chars(string.data(), std::next(string.data(), string.size()), value);
 			return value;
 		}
+
+		vertex convert_vertex(std::string_view vertex_string)
+		{
+			auto iterator = vertex_string.cbegin();
+			const auto stop = vertex_string.cend();
+			const auto position = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
+			const auto normal = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
+			static_cast<void>(normal);
+			return vertex {.position {position}};
+		}
 	}
 }
 
@@ -45,7 +55,8 @@ d3d12_sandbox::wavefront d3d12_sandbox::load_wavefront(gsl::czstring<> name)
 	const auto content_end = content.end();
 
 	std::vector<vector3> positions {};
-	std::vector<std::array<unsigned int, 3>> faces {};
+	std::vector<triangle> faces {};
+	std::vector<vector3> normals {};
 	while (true) {
 		const auto next_line = get_next_token<'\r'>(content_iterator, content_end);
 		if (next_line.empty())
@@ -61,13 +72,18 @@ d3d12_sandbox::wavefront d3d12_sandbox::load_wavefront(gsl::czstring<> name)
 			positions.push_back({convert_from<float>(x), convert_from<float>(y), convert_from<float>(z)});
 		}
 		else if (line_type == "f") {
-			faces.push_back({
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
-				convert_from<unsigned int>(get_next_token<' '>(line_iterator, line_end)) - 1,
-			});
+			faces.push_back(
+				{convert_vertex(get_next_token<' '>(line_iterator, line_end)),
+				 convert_vertex(get_next_token<' '>(line_iterator, line_end)),
+				 convert_vertex(get_next_token<' '>(line_iterator, line_end))});
+		}
+		else if (line_type == "vn") {
+			const auto x = get_next_token<' '>(line_iterator, line_end);
+			const auto y = get_next_token<' '>(line_iterator, line_end);
+			const auto z = get_next_token<' '>(line_iterator, line_end);
+			normals.push_back({convert_from<float>(x), convert_from<float>(y), convert_from<float>(z)});
 		}
 	}
 
-	return {.positions {std::move(positions)}, .faces {std::move(faces)}};
+	return {.positions {std::move(positions)}, .normals {std::move(normals)}, .faces {std::move(faces)}};
 }

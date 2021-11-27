@@ -393,7 +393,7 @@ namespace d3d12_sandbox {
 		{
 			const auto cube_object = load_wavefront(name);
 			const auto vertex_count = cube_object.positions.size();
-			const auto index_count = cube_object.faces.size() * cube_object.faces.front().size();
+			const auto index_count = cube_object.faces.size() * cube_object.faces.front().vertex_count;
 			const auto vertex_bytes = vertex_count * sizeof(vector3);
 			const auto index_bytes = index_count * sizeof(unsigned int);
 			const auto buffer_size = index_bytes + vertex_bytes;
