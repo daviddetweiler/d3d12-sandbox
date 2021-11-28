@@ -47,11 +47,11 @@ int main(int argc, char** argv)
 	std::cout << "\t" << object.textures.size() << " textures\n";
 	std::cout << "\t" << object.normals.size() << " normals\n";
 
-	std::unordered_map<vertex, std::size_t> vertex_set;
+	std::unordered_map<vertex, std::size_t> index_map;
 	std::vector<vertex_data> vertices;
 	std::vector<std::size_t> indices;
 	for (const auto& vertex : object.faces) {
-		const auto& [iterator, inserted] = vertex_set.insert({vertex, vertices.size()});
+		const auto& [iterator, inserted] = index_map.insert({vertex, vertices.size()});
 		if (inserted) {
 			indices.emplace_back(vertices.size());
 			vertices.emplace_back(vertex_data {
@@ -65,4 +65,14 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "Repacked " << indices.size() << " indices and " << vertices.size() << " vertices\n";
+	std::ofstream outfile {arguments[2]};
+	outfile.exceptions(outfile.failbit | outfile.badbit);
+	const auto index_count = indices.size();
+	const auto vertex_count = vertices.size();
+	outfile.write(reinterpret_cast<const char*>(&index_count), sizeof(index_count));
+	outfile.write(reinterpret_cast<const char*>(&vertex_count), sizeof(vertex_count));
+	outfile.write(reinterpret_cast<const char*>(indices.data()), index_count * sizeof(decltype(indices)::value_type));
+	outfile.write(
+		reinterpret_cast<const char*>(vertices.data()),
+		vertex_count * sizeof(decltype(vertices)::value_type));
 }
