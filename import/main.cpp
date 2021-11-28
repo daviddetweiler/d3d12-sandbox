@@ -15,6 +15,48 @@ namespace importer {
 	{
 		return a.position == b.position && a.texture == b.texture && a.normal == b.normal;
 	}
+
+	GSL_SUPPRESS(type) // Used to write byte representation to a binary file
+	void write_streams(
+		gsl::czstring<> filename,
+		const std::vector<std::size_t>& indices,
+		const std::vector<vertex_data>& vertices)
+	{
+		std::ofstream outfile {filename, outfile.binary};
+		outfile.exceptions(outfile.failbit | outfile.badbit);
+		const auto index_count = indices.size();
+		const auto vertex_count = vertices.size();
+		outfile.write(reinterpret_cast<const char*>(&index_count), sizeof(index_count));
+		outfile.write(reinterpret_cast<const char*>(&vertex_count), sizeof(vertex_count));
+		outfile.write(reinterpret_cast<const char*>(indices.data()), index_count * sizeof(std::size_t));
+		outfile.write(reinterpret_cast<const char*>(vertices.data()), vertex_count * sizeof(vertex_data));
+	}
+
+	void write_wavefront(
+		gsl::czstring<> filename,
+		const std::vector<std::size_t>& indices,
+		const std::vector<vertex_data>& vertices)
+	{
+		std::ofstream outfile {filename};
+		outfile.exceptions(outfile.failbit | outfile.badbit);
+		for (const auto& v : vertices)
+			outfile << "v " << v.position.x << " " << v.position.y << " " << v.position.z << "\n";
+
+		for (const auto& v : vertices)
+			outfile << "vt " << v.texture_coord.x << " " << v.texture_coord.y << " " << v.texture_coord.z << "\n";
+
+		for (const auto& v : vertices)
+			outfile << "vn " << v.normal.x << " " << v.normal.y << " " << v.normal.z << "\n";
+
+		const auto index_count = gsl::narrow_cast<gsl::index>(indices.size());
+		for (gsl::index i {}; i < index_count; i += 3) {
+			const auto a = indices.at(i) + 1;
+			const auto b = indices.at(i + 1) + 1;
+			const auto c = indices.at(i + 2) + 1;
+			outfile << "f " << a << "/" << a << "/" << a << " " << b << "/" << b << "/" << b << " " << c << "/" << c
+					<< "/" << c << "\n";
+		}
+	}
 }
 
 namespace std {
@@ -31,7 +73,6 @@ namespace std {
 	};
 }
 
-GSL_SUPPRESS(type) // Used to write byte representation to a binary file
 int main(int argc, char** argv)
 {
 	using namespace importer;
@@ -66,14 +107,5 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "Repacked " << indices.size() << " indices and " << vertices.size() << " vertices\n";
-	std::ofstream outfile {arguments[2]};
-	outfile.exceptions(outfile.failbit | outfile.badbit);
-	const auto index_count = indices.size();
-	const auto vertex_count = vertices.size();
-	outfile.write(reinterpret_cast<const char*>(&index_count), sizeof(index_count));
-	outfile.write(reinterpret_cast<const char*>(&vertex_count), sizeof(vertex_count));
-	outfile.write(reinterpret_cast<const char*>(indices.data()), index_count * sizeof(decltype(indices)::value_type));
-	outfile.write(
-		reinterpret_cast<const char*>(vertices.data()),
-		vertex_count * sizeof(decltype(vertices)::value_type));
+	write_streams(arguments[2], indices, vertices);
 }
