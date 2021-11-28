@@ -31,6 +31,7 @@ namespace std {
 	};
 }
 
+GSL_SUPPRESS(type) // Used to write byte representation to a binary file
 int main(int argc, char** argv)
 {
 	using namespace importer;
