@@ -2,6 +2,16 @@
 
 #include "wavefront_loader.h"
 
+namespace importer {
+	namespace {
+		struct vertex_data {
+			vector3 position;
+			vector3 texture_coord;
+			vector3 normal;
+		};
+	}
+}
+
 int main(int argc, char** argv)
 {
 	using namespace importer;
