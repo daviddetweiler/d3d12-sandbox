@@ -12,5 +12,9 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	load_wavefront(arguments[1]);
+	const auto object = load_wavefront(arguments[1]);
+	std::cout << "Found:\n\t" << object.faces.size() << " triangles,\n";
+	std::cout << "\t" << object.positions.size() << " vertices\n";
+	std::cout << "\t" << object.textures.size() << " textures\n";
+	std::cout << "\t" << object.normals.size() << " normals\n";
 }

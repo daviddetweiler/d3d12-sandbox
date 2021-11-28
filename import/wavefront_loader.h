@@ -11,6 +11,7 @@ namespace importer {
 
 	struct vertex {
 		unsigned int position;
+		unsigned int texture;
 		unsigned int normal;
 	};
 
@@ -24,6 +25,7 @@ namespace importer {
 
 	struct wavefront {
 		std::vector<vector3> positions;
+		std::vector<vector3> textures;
 		std::vector<vector3> normals;
 		std::vector<triangle> faces;
 	};

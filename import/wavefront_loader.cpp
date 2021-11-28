@@ -35,8 +35,9 @@ namespace importer {
 			auto iterator = vertex_string.cbegin();
 			const auto stop = vertex_string.cend();
 			const auto position = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
+			const auto texture = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
 			const auto normal = convert_from<unsigned int>(get_next_token<'/'>(iterator, stop)) - 1;
-			return vertex {.position {position}, .normal {normal}};
+			return vertex {.position {position}, .texture {texture}, .normal {normal}};
 		}
 	}
 }
@@ -53,9 +54,11 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 	auto content_iterator = content.begin();
 	const auto content_end = content.end();
 
+	auto non_triangles = 0;
 	std::vector<vector3> positions {};
 	std::vector<triangle> faces {};
 	std::vector<vector3> normals {};
+	std::vector<vector3> textures {};
 	while (true) {
 		const auto next_line = get_next_token<'\r'>(content_iterator, content_end);
 		if (next_line.empty())
@@ -75,6 +78,9 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 				{convert_vertex(get_next_token<' '>(line_iterator, line_end)),
 				 convert_vertex(get_next_token<' '>(line_iterator, line_end)),
 				 convert_vertex(get_next_token<' '>(line_iterator, line_end))});
+
+			if (!get_next_token<' '>(line_iterator, line_end).empty())
+				++non_triangles;
 		}
 		else if (line_type == "vn") {
 			const auto x = get_next_token<' '>(line_iterator, line_end);
@@ -82,7 +88,20 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 			const auto z = get_next_token<' '>(line_iterator, line_end);
 			normals.push_back({convert_from<float>(x), convert_from<float>(y), convert_from<float>(z)});
 		}
+		else if (line_type == "vt") {
+			const auto x = get_next_token<' '>(line_iterator, line_end);
+			const auto y = get_next_token<' '>(line_iterator, line_end);
+			const auto z = get_next_token<' '>(line_iterator, line_end);
+			textures.push_back({convert_from<float>(x), convert_from<float>(y), convert_from<float>(z)});
+		}
 	}
 
-	return {.positions {std::move(positions)}, .normals {std::move(normals)}, .faces {std::move(faces)}};
+	if (non_triangles)
+		std::cout << "warning: " << non_triangles << " faces were not triangles\n";
+
+	return {
+		.positions {std::move(positions)},
+		.textures {std::move(textures)},
+		.normals {std::move(normals)},
+		.faces {std::move(faces)}};
 }
