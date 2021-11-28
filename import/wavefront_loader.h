@@ -15,19 +15,11 @@ namespace importer {
 		unsigned int normal;
 	};
 
-	struct triangle {
-		static constexpr std::size_t vertex_count = 3;
-
-		vertex a;
-		vertex b;
-		vertex c;
-	};
-
 	struct wavefront {
 		std::vector<vector3> positions;
 		std::vector<vector3> textures;
 		std::vector<vector3> normals;
-		std::vector<triangle> faces;
+		std::vector<vertex> faces;
 	};
 
 	wavefront load_wavefront(gsl::czstring<> name);

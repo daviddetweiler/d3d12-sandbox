@@ -56,7 +56,7 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 
 	auto non_triangles = 0;
 	std::vector<vector3> positions {};
-	std::vector<triangle> faces {};
+	std::vector<vertex> faces {};
 	std::vector<vector3> normals {};
 	std::vector<vector3> textures {};
 	while (true) {
@@ -74,11 +74,9 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 			positions.push_back({convert_from<float>(x), convert_from<float>(y), convert_from<float>(z)});
 		}
 		else if (line_type == "f") {
-			faces.push_back(
-				{convert_vertex(get_next_token<' '>(line_iterator, line_end)),
-				 convert_vertex(get_next_token<' '>(line_iterator, line_end)),
-				 convert_vertex(get_next_token<' '>(line_iterator, line_end))});
-
+			faces.emplace_back(convert_vertex(get_next_token<' '>(line_iterator, line_end)));
+			faces.emplace_back(convert_vertex(get_next_token<' '>(line_iterator, line_end)));
+			faces.emplace_back(convert_vertex(get_next_token<' '>(line_iterator, line_end)));
 			if (!get_next_token<' '>(line_iterator, line_end).empty())
 				++non_triangles;
 		}
