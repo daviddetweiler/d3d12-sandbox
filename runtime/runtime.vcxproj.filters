@@ -57,11 +57,9 @@
   <ItemGroup>
     <None Include="PropertySheet.props" />
     <None Include="packages.config" />
-    <None Include="cube.wv" />
     <None Include="colored_vertex.hlsli">
       <Filter>Shader Headers</Filter>
     </None>
-    <None Include="bunny.wv" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="readme.txt" />

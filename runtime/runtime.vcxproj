@@ -145,9 +145,7 @@
     <ClInclude Include="stream_format.h" />
     <ResourceCompile Include="runtime.rc" />
     <Manifest Include="runtime.exe.manifest" />
-    <None Include="bunny.wv" />
     <None Include="colored_vertex.hlsli" />
-    <None Include="cube.wv" />
     <None Include="packages.config" />
     <None Include="PropertySheet.props" />
     <Text Include="readme.txt">
