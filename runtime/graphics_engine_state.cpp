@@ -5,7 +5,7 @@
 #include "shader_loading.h"
 #include "stream_format.h"
 
-namespace d3d12_sandbox {
+namespace sandbox {
 	namespace {
 		constexpr auto enable_api_debugging = false;
 
@@ -440,12 +440,12 @@ namespace d3d12_sandbox {
 	}
 }
 
-d3d12_sandbox::graphics_engine_state::graphics_engine_state(HWND target_window) :
+sandbox::graphics_engine_state::graphics_engine_state(HWND target_window) :
 	graphics_engine_state {*create_dxgi_factory(), target_window}
 {
 }
 
-d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWND target_window) :
+sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWND target_window) :
 	m_device {create_gpu_device(factory)},
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
@@ -470,9 +470,9 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 }
 
 GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
-d3d12_sandbox::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
+sandbox::graphics_engine_state::~graphics_engine_state() noexcept { wait_for_idle(); }
 
-void d3d12_sandbox::graphics_engine_state::render(render_mode type, const DirectX::XMMATRIX& view_matrix)
+void sandbox::graphics_engine_state::render(render_mode type, const DirectX::XMMATRIX& view_matrix)
 {
 	const auto& resources = wait_for_frame();
 	auto& allocator = *resources.allocator;
@@ -496,7 +496,7 @@ void d3d12_sandbox::graphics_engine_state::render(render_mode type, const Direct
 	signal_frame_submission();
 }
 
-void d3d12_sandbox::graphics_engine_state::signal_size_change()
+void sandbox::graphics_engine_state::signal_size_change()
 {
 	wait_for_idle();
 	m_frame_resources = {};
@@ -506,13 +506,13 @@ void d3d12_sandbox::graphics_engine_state::signal_size_change()
 	m_projection_matrix = compute_projection(*m_swap_chain);
 }
 
-void d3d12_sandbox::graphics_engine_state::wait_for_idle()
+void sandbox::graphics_engine_state::wait_for_idle()
 {
 	while (m_fence->GetCompletedValue() < m_fence_current_value)
 		_mm_pause();
 }
 
-const d3d12_sandbox::per_frame_resources& d3d12_sandbox::graphics_engine_state::wait_for_frame()
+const sandbox::per_frame_resources& sandbox::graphics_engine_state::wait_for_frame()
 {
 	while (m_fence->GetCompletedValue() < m_fence_current_value - 1)
 		_mm_pause();
@@ -520,13 +520,13 @@ const d3d12_sandbox::per_frame_resources& d3d12_sandbox::graphics_engine_state::
 	return m_frame_resources.at(m_swap_chain->GetCurrentBackBufferIndex());
 }
 
-void d3d12_sandbox::graphics_engine_state::signal_frame_submission()
+void sandbox::graphics_engine_state::signal_frame_submission()
 {
 	winrt::check_hresult(m_queue->Signal(m_fence.get(), ++m_fence_current_value));
 }
 
 // TODO: should I be moved in-class?
-void d3d12_sandbox::graphics_engine_state::record_debug_grid_commands(
+void sandbox::graphics_engine_state::record_debug_grid_commands(
 	const per_frame_resources& resources,
 	const DirectX::XMMATRIX& view)
 {
@@ -555,7 +555,7 @@ void d3d12_sandbox::graphics_engine_state::record_debug_grid_commands(
 }
 
 // TODO: should I be moved in-class?
-void d3d12_sandbox::graphics_engine_state::record_object_view_commands(
+void sandbox::graphics_engine_state::record_object_view_commands(
 	const per_frame_resources& resources,
 	const DirectX::XMMATRIX& view,
 	const loaded_geometry& object)

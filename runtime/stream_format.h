@@ -1,6 +1,6 @@
 #pragma once
 
-namespace d3d12_sandbox {
+namespace sandbox {
 	struct vector3 {
 		float x;
 		float y;

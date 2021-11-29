@@ -2,7 +2,7 @@
 
 #include "wavefront_loader.h"
 
-namespace importer {
+namespace sandbox {
 	namespace {
 		template <char delimiter, typename iterator_type>
 		std::string_view get_next_token(iterator_type& iterator, const iterator_type& last) noexcept
@@ -42,7 +42,7 @@ namespace importer {
 	}
 }
 
-importer::wavefront importer::load_wavefront(gsl::czstring<> name)
+sandbox::wavefront sandbox::load_wavefront(gsl::czstring<> name)
 {
 	std::ifstream object_file {name, object_file.ate | object_file.binary};
 	object_file.exceptions(object_file.badbit | object_file.failbit);
@@ -55,10 +55,10 @@ importer::wavefront importer::load_wavefront(gsl::czstring<> name)
 	const auto content_end = content.end();
 
 	auto non_triangles = 0;
-	std::vector<d3d12_sandbox::vector3> positions {};
+	std::vector<vector3> positions {};
 	std::vector<vertex> faces {};
-	std::vector<d3d12_sandbox::vector3> normals {};
-	std::vector<d3d12_sandbox::vector3> textures {};
+	std::vector<vector3> normals {};
+	std::vector<vector3> textures {};
 	while (true) {
 		const auto next_line = get_next_token<'\r'>(content_iterator, content_end);
 		if (next_line.empty())

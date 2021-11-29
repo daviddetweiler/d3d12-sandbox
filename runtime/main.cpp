@@ -2,7 +2,7 @@
 
 #include "graphics_engine_state.h"
 
-namespace d3d12_sandbox {
+namespace sandbox {
 	namespace {
 		int handle_messages_until_quit()
 		{
@@ -133,7 +133,7 @@ namespace d3d12_sandbox {
 				.lpfnWndProc {handle_host_creation},
 				.hInstance {instance},
 				.hCursor {winrt::check_pointer(LoadCursorW(nullptr, IDC_ARROW))},
-				.lpszClassName {L"d3d12_sandbox::host_window"},
+				.lpszClassName {L"sandbox::host_window"},
 			};
 
 			winrt::check_bool(RegisterClassExW(&window_class));
@@ -265,9 +265,9 @@ namespace d3d12_sandbox {
 
 int wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
 {
-	d3d12_sandbox::host_atomic_state ui_state {};
-	const auto host_window = d3d12_sandbox::create_host_window(instance, ui_state);
-	d3d12_sandbox::do_update_loop(host_window, ui_state);
-	SendMessageW(host_window, d3d12_sandbox::confirm_exit, 0, 0);
-	return d3d12_sandbox::handle_messages_until_quit();
+	sandbox::host_atomic_state ui_state {};
+	const auto host_window = sandbox::create_host_window(instance, ui_state);
+	sandbox::do_update_loop(host_window, ui_state);
+	SendMessageW(host_window, sandbox::confirm_exit, 0, 0);
+	return sandbox::handle_messages_until_quit();
 }

@@ -4,7 +4,7 @@
 
 #include "../runtime/stream_format.h"
 
-namespace importer {
+namespace sandbox {
 	struct vertex {
 		unsigned int position;
 		unsigned int texture;
@@ -12,9 +12,9 @@ namespace importer {
 	};
 
 	struct wavefront {
-		std::vector<d3d12_sandbox::vector3> positions;
-		std::vector<d3d12_sandbox::vector3> textures;
-		std::vector<d3d12_sandbox::vector3> normals;
+		std::vector<vector3> positions;
+		std::vector<vector3> textures;
+		std::vector<vector3> normals;
 		std::vector<vertex> faces;
 	};
 

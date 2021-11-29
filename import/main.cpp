@@ -3,7 +3,7 @@
 #include "../runtime/stream_format.h"
 #include "wavefront_loader.h"
 
-namespace importer {
+namespace sandbox {
 	bool operator==(const vertex& a, const vertex& b) noexcept
 	{
 		return a.position == b.position && a.texture == b.texture && a.normal == b.normal;
@@ -13,7 +13,7 @@ namespace importer {
 	void write_streams(
 		gsl::czstring<> filename,
 		const std::vector<unsigned int>& indices,
-		const std::vector<d3d12_sandbox::vertex_data>& vertices)
+		const std::vector<vertex_data>& vertices)
 	{
 		std::ofstream outfile {filename, outfile.binary};
 		outfile.exceptions(outfile.failbit | outfile.badbit);
@@ -22,15 +22,13 @@ namespace importer {
 		outfile.write(reinterpret_cast<const char*>(&index_count), sizeof(index_count));
 		outfile.write(reinterpret_cast<const char*>(&vertex_count), sizeof(vertex_count));
 		outfile.write(reinterpret_cast<const char*>(indices.data()), index_count * sizeof(unsigned int));
-		outfile.write(
-			reinterpret_cast<const char*>(vertices.data()),
-			vertex_count * sizeof(d3d12_sandbox::vertex_data));
+		outfile.write(reinterpret_cast<const char*>(vertices.data()), vertex_count * sizeof(vertex_data));
 	}
 
 	void write_wavefront(
 		gsl::czstring<> filename,
 		const std::vector<unsigned int>& indices,
-		const std::vector<d3d12_sandbox::vertex_data>& vertices)
+		const std::vector<vertex_data>& vertices)
 	{
 		std::ofstream outfile {filename};
 		outfile.exceptions(outfile.failbit | outfile.badbit);
@@ -56,8 +54,8 @@ namespace importer {
 
 namespace std {
 	template <>
-	struct hash<importer::vertex> {
-		std::size_t operator()(const importer::vertex& v) const noexcept
+	struct hash<sandbox::vertex> {
+		std::size_t operator()(const sandbox::vertex& v) const noexcept
 		{
 			std::uint32_t hash = 0xffffffff;
 			hash = _mm_crc32_u32(hash, v.position);
@@ -70,7 +68,7 @@ namespace std {
 
 int main(int argc, char** argv)
 {
-	using namespace importer;
+	using namespace sandbox;
 
 	const gsl::span arguments {argv, gsl::narrow_cast<std::size_t>(argc)};
 	if (argc < 3) {
@@ -85,13 +83,13 @@ int main(int argc, char** argv)
 	std::cout << "\t" << object.normals.size() << " normals\n";
 
 	std::unordered_map<vertex, unsigned int> index_map;
-	std::vector<d3d12_sandbox::vertex_data> vertices;
+	std::vector<vertex_data> vertices;
 	std::vector<unsigned int> indices;
 	for (const auto& vertex : object.faces) {
 		const auto& [iterator, inserted] = index_map.insert({vertex, gsl::narrow_cast<unsigned int>(vertices.size())});
 		if (inserted) {
 			indices.emplace_back(iterator->second);
-			vertices.emplace_back(d3d12_sandbox::vertex_data {
+			vertices.emplace_back(vertex_data {
 				.position {object.positions.at(vertex.position)},
 				.texture_coord {object.textures.at(vertex.texture)},
 				.normal {object.normals.at(vertex.normal)}});

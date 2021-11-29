@@ -2,7 +2,7 @@
 
 #include "shader_loading.h"
 
-namespace d3d12_sandbox {
+namespace sandbox {
 	namespace {
 		auto get_self_path()
 		{
@@ -13,7 +13,7 @@ namespace d3d12_sandbox {
 	}
 }
 
-std::vector<char> d3d12_sandbox::load_compiled_shader(gsl::cwzstring<> name)
+std::vector<char> sandbox::load_compiled_shader(gsl::cwzstring<> name)
 {
 	static const auto parent_path {get_self_path()};
 	const auto path = parent_path / name;
