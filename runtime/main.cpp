@@ -165,20 +165,32 @@ namespace sandbox {
 			static const auto down_rotate = DirectX::XMMatrixRotationX(-angular_speed);
 			static const auto left_roll = DirectX::XMMatrixRotationZ(-angular_speed);
 			static const auto right_roll = DirectX::XMMatrixRotationZ(angular_speed);
+			static const auto pan_left = DirectX::XMMatrixTranslation(linear_speed, 0.0f, 0.0f);
+			static const auto pan_right = DirectX::XMMatrixTranslation(-linear_speed, 0.0f, 0.0f);
+			static const auto pan_up = DirectX::XMMatrixTranslation(0.0f, -linear_speed, 0.0f);
+			static const auto pan_down = DirectX::XMMatrixTranslation(0.0f, linear_speed, 0.0f);
 			switch (key) {
 			case VK_UP:
+				return pan_up;
+
 			case 'W':
 				return forward_translate;
 
 			case VK_DOWN:
+				return pan_down;
+
 			case 'S':
 				return back_translate;
 
 			case VK_LEFT:
+				return pan_left;
+
 			case 'A':
 				return left_rotate;
 
 			case VK_RIGHT:
+				return pan_right;
+
 			case 'D':
 				return right_rotate;
 
