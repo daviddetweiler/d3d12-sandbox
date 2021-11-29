@@ -36,7 +36,7 @@
     <ClInclude Include="shader_loading.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="wavefront_loader.h">
+    <ClInclude Include="stream_format.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -51,9 +51,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="shader_loading.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="wavefront_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

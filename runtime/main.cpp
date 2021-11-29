@@ -1,7 +1,6 @@
 ﻿#include "pch.h"
 
 #include "graphics_engine_state.h"
-#include "wavefront_loader.h"
 
 namespace d3d12_sandbox {
 	namespace {

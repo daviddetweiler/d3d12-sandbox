@@ -3,7 +3,7 @@
 #include "graphics_engine_state.h"
 
 #include "shader_loading.h"
-#include "wavefront_loader.h"
+#include "stream_format.h"
 
 namespace d3d12_sandbox {
 	namespace {
@@ -175,12 +175,25 @@ namespace d3d12_sandbox {
 		{
 			const auto vertex_shader = load_compiled_shader(L"debug_colors.cso");
 			const auto pixel_shader = load_compiled_shader(L"vertex_color_passthrough.cso");
-			const D3D12_INPUT_ELEMENT_DESC position {
-				.SemanticName {"POSITION"},
-				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-			};
+			const std::array layout {
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"POSITION"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				},
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"TEXTURE"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				},
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"NORMAL"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				}};
 
 			const D3D12_GRAPHICS_PIPELINE_STATE_DESC description {
 				.pRootSignature {root_signatures.default_signature.get()},
@@ -198,7 +211,9 @@ namespace d3d12_sandbox {
 					.DepthWriteMask {D3D12_DEPTH_WRITE_MASK_ALL},
 					.DepthFunc {D3D12_COMPARISON_FUNC_LESS},
 				},
-				.InputLayout {.pInputElementDescs {&position}, .NumElements {1}},
+				.InputLayout {
+					.pInputElementDescs {layout.data()},
+					.NumElements {gsl::narrow_cast<UINT>(layout.size())}},
 				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE},
 				.NumRenderTargets {1},
 				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
@@ -389,18 +404,23 @@ namespace d3d12_sandbox {
 			resource.Unmap(0, &range);
 		}
 
+		GSL_SUPPRESS(type) // Required for binary deserialization
 		auto load_geometry(ID3D12Device& device, gsl::czstring<> name)
 		{
-			const auto cube_object = load_wavefront(name);
-			const auto vertex_count = cube_object.positions.size();
-			const auto index_count = cube_object.faces.size() * triangle::vertex_count;
-			const auto vertex_bytes = vertex_count * sizeof(vector3);
+			std::ifstream file {name, file.binary};
+			file.exceptions(file.failbit | file.badbit);
+			std::size_t vertex_count {};
+			std::size_t index_count {};
+			file.read(reinterpret_cast<char*>(&index_count), sizeof(index_count));
+			file.read(reinterpret_cast<char*>(&vertex_count), sizeof(vertex_count));
+
+			const auto vertex_bytes = vertex_count * sizeof(vertex_data);
 			const auto index_bytes = index_count * sizeof(unsigned int);
 			const auto buffer_size = index_bytes + vertex_bytes;
 			const auto buffer = create_object_buffer(device, gsl::narrow<unsigned int>(buffer_size));
 			const auto data_pointer = map(*buffer);
-			std::memcpy(data_pointer, cube_object.faces.data(), index_bytes);
-			std::memcpy(std::next(data_pointer, index_bytes), cube_object.positions.data(), vertex_bytes);
+			file.read(data_pointer, index_bytes);
+			file.read(std::next(data_pointer, index_bytes), vertex_bytes);
 			unmap(*buffer);
 			return loaded_geometry {
 				.buffer {buffer},
@@ -412,7 +432,7 @@ namespace d3d12_sandbox {
 				.vertex_view {
 					.BufferLocation {buffer->GetGPUVirtualAddress() + index_bytes},
 					.SizeInBytes {gsl::narrow<unsigned int>(vertex_bytes)},
-					.StrideInBytes {sizeof(vector3)},
+					.StrideInBytes {sizeof(vertex_data)},
 				},
 				.size {gsl::narrow<unsigned int>(index_count)},
 			};
@@ -445,7 +465,7 @@ d3d12_sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& facto
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
-	m_object {load_geometry(*m_device, "bunny.wv")}
+	m_object {load_geometry(*m_device, "C:\\Users\\david\\OneDrive\\Desktop\\bunny.stream")}
 {
 }
 
