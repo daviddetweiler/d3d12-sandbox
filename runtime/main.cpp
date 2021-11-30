@@ -220,12 +220,12 @@ namespace sandbox {
 			}
 		}
 
-		void do_update_loop(HWND host_window, host_atomic_state& client_data)
+		void do_update_loop(HWND host_window, host_atomic_state& client_data, const std::filesystem::path& filepath)
 		{
 			bool is_first_frame {true};
 			auto view_matrix = DirectX::XMMatrixIdentity();
 			render_mode type = render_mode::object_view;
-			graphics_engine_state renderer {host_window};
+			graphics_engine_state renderer {host_window, filepath};
 			bool snapshot {};
 			while (true) {
 				using clock = std::chrono::high_resolution_clock;
@@ -275,11 +275,18 @@ namespace sandbox {
 	}
 }
 
-int wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ LPWSTR, _In_ int)
+int wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ LPWSTR command_line, _In_ int)
 {
+	int argc;
+	const auto argv = CommandLineToArgvW(command_line, &argc);
+	const gsl::span arguments {argv, gsl::narrow_cast<std::size_t>(argc)};
+	if (argc < 1)
+		return 1;
+
 	sandbox::host_atomic_state ui_state {};
 	const auto host_window = sandbox::create_host_window(instance, ui_state);
-	sandbox::do_update_loop(host_window, ui_state);
+	sandbox::do_update_loop(host_window, ui_state, arguments[0]);
 	SendMessageW(host_window, sandbox::confirm_exit, 0, 0);
+
 	return sandbox::handle_messages_until_quit();
 }

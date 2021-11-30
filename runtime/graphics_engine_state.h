@@ -32,7 +32,7 @@ namespace sandbox {
 
 	class graphics_engine_state {
 	public:
-		graphics_engine_state(HWND target_window);
+		graphics_engine_state(HWND target_window, const std::filesystem::path& filepath);
 		void render(render_mode type, const DirectX::XMMATRIX& view_matrix);
 		void signal_size_change();
 
@@ -64,7 +64,7 @@ namespace sandbox {
 		DirectX::XMMATRIX m_projection_matrix;
 		const loaded_geometry m_object;
 
-		graphics_engine_state(IDXGIFactory6& factory, HWND target_window);
+		graphics_engine_state(IDXGIFactory6& factory, HWND target_window, const std::filesystem::path& filepath);
 
 		void wait_for_idle();
 		const per_frame_resources& wait_for_frame();

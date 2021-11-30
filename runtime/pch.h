@@ -27,5 +27,6 @@
 #include <dxgi1_6.h>
 
 #include <sal.h>
+#include <shellapi.h>
 
 #include <winrt/base.h>

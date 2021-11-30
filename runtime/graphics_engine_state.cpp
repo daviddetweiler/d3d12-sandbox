@@ -405,9 +405,9 @@ namespace sandbox {
 		}
 
 		GSL_SUPPRESS(type) // Required for binary deserialization
-		auto load_geometry(ID3D12Device& device, gsl::czstring<> name)
+		auto load_geometry(ID3D12Device& device, const std::filesystem::path& path)
 		{
-			std::ifstream file {name, file.binary};
+			std::ifstream file {path, file.binary};
 			file.exceptions(file.failbit | file.badbit);
 			std::size_t vertex_count {};
 			std::size_t index_count {};
@@ -440,12 +440,15 @@ namespace sandbox {
 	}
 }
 
-sandbox::graphics_engine_state::graphics_engine_state(HWND target_window) :
-	graphics_engine_state {*create_dxgi_factory(), target_window}
+sandbox::graphics_engine_state::graphics_engine_state(HWND target_window, const std::filesystem::path& filepath) :
+	graphics_engine_state {*create_dxgi_factory(), target_window, filepath}
 {
 }
 
-sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HWND target_window) :
+sandbox::graphics_engine_state::graphics_engine_state(
+	IDXGIFactory6& factory,
+	HWND target_window,
+	const std::filesystem::path& filepath) :
 	m_device {create_gpu_device(factory)},
 	m_queue {create_command_queue(*m_device)},
 	m_swap_chain {create_swap_chain(factory, *m_queue, target_window)},
@@ -465,7 +468,7 @@ sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HW
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
-	m_object {load_geometry(*m_device, "C:\\Users\\david\\OneDrive\\Desktop\\dragon.stream")}
+	m_object {load_geometry(*m_device, filepath)}
 {
 }
 
