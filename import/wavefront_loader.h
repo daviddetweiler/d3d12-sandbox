@@ -6,9 +6,9 @@
 
 namespace sandbox {
 	struct vertex {
-		unsigned int position;
-		unsigned int texture;
-		unsigned int normal;
+		std::size_t position;
+		std::size_t texture;
+		std::size_t normal;
 	};
 
 	struct wavefront {

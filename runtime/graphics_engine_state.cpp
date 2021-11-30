@@ -465,7 +465,7 @@ sandbox::graphics_engine_state::graphics_engine_state(IDXGIFactory6& factory, HW
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
-	m_object {load_geometry(*m_device, "C:\\Users\\david\\OneDrive\\Desktop\\bunny.stream")}
+	m_object {load_geometry(*m_device, "C:\\Users\\david\\OneDrive\\Desktop\\dragon.stream")}
 {
 }
 

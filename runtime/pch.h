@@ -8,8 +8,8 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <mutex>
-#include <numeric>
 #include <sstream>
 #include <string_view>
 #include <utility>
