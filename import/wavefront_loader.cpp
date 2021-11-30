@@ -133,6 +133,7 @@ sandbox::wavefront sandbox::load_wavefront(gsl::czstring<> name)
 	if (non_triangles)
 		std::cout << "warning: " << non_triangles << " faces were not triangles\n";
 
+
 	return {
 		.positions {std::move(positions)},
 		.textures {std::move(textures)},

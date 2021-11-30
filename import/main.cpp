@@ -52,10 +52,10 @@ namespace sandbox {
 			}
 		}
 
-		vector3 map_index(gsl::span<const vector3> values, std::size_t index)
+		vector3 map_index(gsl::span<const vector3> values, std::size_t index) noexcept
 		{
 			constexpr auto sentinel = std::numeric_limits<std::size_t>::max();
-			return index == sentinel ? vector3 {} : values[index];
+			return (index == sentinel || index >= values.size()) ? vector3 {} : values[index];
 		}
 	}
 }
