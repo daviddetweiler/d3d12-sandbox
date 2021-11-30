@@ -57,7 +57,7 @@
   <ItemGroup>
     <None Include="PropertySheet.props" />
     <None Include="packages.config" />
-    <None Include="colored_vertex.hlsli">
+    <None Include="vertex_data.hlsli">
       <Filter>Shader Headers</Filter>
     </None>
   </ItemGroup>
@@ -79,13 +79,10 @@
     <FxCompile Include="debug_grid.hlsl">
       <Filter>Vertex Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="project.hlsl">
-      <Filter>Vertex Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="vertex_color_passthrough.hlsl">
+    <FxCompile Include="debug_shading.hlsl">
       <Filter>Pixel Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="debug_colors.hlsl">
+    <FxCompile Include="project.hlsl">
       <Filter>Vertex Shaders</Filter>
     </FxCompile>
   </ItemGroup>
