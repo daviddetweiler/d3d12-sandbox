@@ -227,6 +227,62 @@ namespace sandbox {
 				&description);
 		}
 
+		auto create_wireframe_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
+		{
+			const auto vertex_shader = load_compiled_shader(L"project.cso");
+			const auto pixel_shader = load_compiled_shader(L"debug_shading.cso");
+			const std::array layout {
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"SV_POSITION"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				},
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"TEXTURE"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				},
+				D3D12_INPUT_ELEMENT_DESC {
+					.SemanticName {"NORMAL"},
+					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+				}};
+
+			const D3D12_GRAPHICS_PIPELINE_STATE_DESC description {
+				.pRootSignature {root_signatures.default_signature.get()},
+				.VS {.pShaderBytecode {vertex_shader.data()}, .BytecodeLength {vertex_shader.size()}},
+				.PS {.pShaderBytecode {pixel_shader.data()}, .BytecodeLength {pixel_shader.size()}},
+				.BlendState {.RenderTarget {{.RenderTargetWriteMask {D3D12_COLOR_WRITE_ENABLE_ALL}}}},
+				.SampleMask {D3D12_DEFAULT_SAMPLE_MASK},
+				.RasterizerState {
+					.FillMode {D3D12_FILL_MODE_WIREFRAME},
+					.CullMode {D3D12_CULL_MODE_NONE},
+					.DepthClipEnable {true},
+				},
+				.DepthStencilState {
+					.DepthEnable {true},
+					.DepthWriteMask {D3D12_DEPTH_WRITE_MASK_ALL},
+					.DepthFunc {D3D12_COMPARISON_FUNC_LESS},
+				},
+				.InputLayout {
+					.pInputElementDescs {layout.data()},
+					.NumElements {gsl::narrow_cast<UINT>(layout.size())}},
+				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE},
+				.NumRenderTargets {1},
+				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
+				.DSVFormat {DXGI_FORMAT_D32_FLOAT},
+				.SampleDesc {.Count {1}},
+			};
+
+			return winrt::capture<ID3D12PipelineState>(
+				&device,
+				&ID3D12Device::CreateGraphicsPipelineState,
+				&description);
+		}
+
 		auto create_root_signature(ID3D12Device& device)
 		{
 			const D3D12_ROOT_PARAMETER constants {
@@ -315,7 +371,7 @@ namespace sandbox {
 			return {
 				.debug_grid_pipeline {create_debug_grid_pipeline_state(device, root_signatures)},
 				.object_pipeline {create_object_pipeline_state(device, root_signatures)},
-			};
+				.wireframe_pipeline {create_wireframe_pipeline_state(device, root_signatures)}};
 		}
 
 		DirectX::XMMATRIX compute_projection(IDXGISwapChain& swap_chain)
@@ -488,6 +544,11 @@ void sandbox::graphics_engine_state::render(render_mode type, const DirectX::XMM
 
 	case render_mode::object_view:
 		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.object_pipeline.get()));
+		record_object_view_commands(resources, view_matrix, m_object);
+		break;
+
+	case render_mode::wireframe_view:
+		winrt::check_hresult(m_command_list->Reset(&allocator, m_pipelines.wireframe_pipeline.get()));
 		record_object_view_commands(resources, view_matrix, m_object);
 		break;
 	}

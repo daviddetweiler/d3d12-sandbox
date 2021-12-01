@@ -19,9 +19,10 @@ namespace sandbox {
 	struct pipeline_state_table {
 		const winrt::com_ptr<ID3D12PipelineState> debug_grid_pipeline;
 		const winrt::com_ptr<ID3D12PipelineState> object_pipeline;
+		const winrt::com_ptr<ID3D12PipelineState> wireframe_pipeline;
 	};
 
-	enum class render_mode { debug_grid, object_view };
+	enum class render_mode { debug_grid, object_view, wireframe_view };
 
 	struct loaded_geometry {
 		winrt::com_ptr<ID3D12Resource> buffer;

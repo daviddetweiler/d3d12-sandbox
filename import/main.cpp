@@ -9,6 +9,11 @@ namespace sandbox {
 		return a.position == b.position && a.texture == b.texture && a.normal == b.normal;
 	}
 
+	bool operator==(const vector3& a, const vector3& b) noexcept
+	{
+		return a.x == b.x && a.y == b.y && a.z == b.z;
+	}
+
 	namespace {
 		GSL_SUPPRESS(type) // Used to write byte representation to a binary file
 		void write_streams(
@@ -55,7 +60,7 @@ namespace sandbox {
 		vector3 map_index(gsl::span<const vector3> values, std::size_t index) noexcept
 		{
 			constexpr auto sentinel = std::numeric_limits<std::size_t>::max();
-			return (index == sentinel || index >= values.size()) ? vector3 {} : values[index];
+			return (index == sentinel || index >= values.size()) ? vector3 {1.0f} : values[index];
 		}
 	}
 }
@@ -108,5 +113,5 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "Repacked " << indices.size() << " indices and " << vertices.size() << " vertices\n";
-	write_streams(arguments[2], indices, vertices);
+	write_wavefront(arguments[2], indices, vertices);
 }

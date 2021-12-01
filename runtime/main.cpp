@@ -242,8 +242,16 @@ namespace sandbox {
 				for (const auto& event : current_state.input_events) {
 					if (event.type == input_event_type::key_pressed) {
 						switch (event.w) {
-						case VK_SPACE:
-							type = type == render_mode::debug_grid ? render_mode::object_view : render_mode::debug_grid;
+						case '1':
+							type = render_mode::debug_grid;
+							break;
+
+						case '2':
+							type = render_mode::object_view;
+							break;
+
+						case '3':
+							type = render_mode::wireframe_view;
 							break;
 
 						case VK_ESCAPE:
