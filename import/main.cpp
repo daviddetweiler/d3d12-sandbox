@@ -113,5 +113,5 @@ int main(int argc, char** argv)
 	}
 
 	std::cout << "Repacked " << indices.size() << " indices and " << vertices.size() << " vertices\n";
-	write_wavefront(arguments[2], indices, vertices);
+	write_streams(arguments[2], indices, vertices);
 }
