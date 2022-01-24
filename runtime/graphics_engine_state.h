@@ -53,9 +53,9 @@ namespace sandbox {
 		const winrt::com_ptr<ID3D12DescriptorHeap> m_dsv_heap;
 		const root_signature_table m_root_signatures;
 		const pipeline_state_table m_pipelines;
-		const winrt::com_ptr<ID3D12GraphicsCommandList> m_command_list {};
-		const D3D12_CPU_DESCRIPTOR_HANDLE m_depth_buffer_view {};
-		winrt::com_ptr<ID3D12Resource> m_depth_buffer {};
+		const winrt::com_ptr<ID3D12GraphicsCommandList> m_command_list;
+		const D3D12_CPU_DESCRIPTOR_HANDLE m_depth_buffer_view;
+		winrt::com_ptr<ID3D12Resource> m_depth_buffer;
 
 		std::array<per_frame_resources, 2> m_frame_resources;
 
@@ -64,6 +64,11 @@ namespace sandbox {
 
 		DirectX::XMMATRIX m_projection_matrix;
 		const loaded_geometry m_object;
+
+		static constexpr auto instance_cube_side = 5;
+		static constexpr auto instance_count = instance_cube_side * instance_cube_side * instance_cube_side;
+		const winrt::com_ptr<ID3D12Resource> instance_data;
+		const D3D12_VERTEX_BUFFER_VIEW instance_data_view;
 
 		graphics_engine_state(IDXGIFactory6& factory, HWND target_window, const std::filesystem::path& filepath);
 

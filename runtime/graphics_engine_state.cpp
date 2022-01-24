@@ -7,7 +7,7 @@
 
 namespace sandbox {
 	namespace {
-		constexpr auto enable_api_debugging = false;
+		constexpr auto enable_api_debugging = true;
 
 		auto create_dxgi_factory()
 		{
@@ -171,30 +171,37 @@ namespace sandbox {
 				&description);
 		}
 
+		constexpr std::array common_layout {
+			D3D12_INPUT_ELEMENT_DESC {
+				.SemanticName {"SV_POSITION"},
+				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+			},
+			D3D12_INPUT_ELEMENT_DESC {
+				.SemanticName {"TEXTURE"},
+				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+			},
+			D3D12_INPUT_ELEMENT_DESC {
+				.SemanticName {"NORMAL"},
+				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
+			},
+			D3D12_INPUT_ELEMENT_DESC {
+				.SemanticName {"OFFSET"},
+				.Format {DXGI_FORMAT_R32G32B32_FLOAT},
+				.InputSlot {1},
+				.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
+				.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA},
+				.InstanceDataStepRate {1}}};
+
 		auto create_object_pipeline_state(ID3D12Device& device, const root_signature_table& root_signatures)
 		{
 			const auto vertex_shader = load_compiled_shader(L"project.cso");
 			const auto pixel_shader = load_compiled_shader(L"debug_shading.cso");
-			const std::array layout {
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"SV_POSITION"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				},
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"TEXTURE"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				},
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"NORMAL"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				}};
-
 			const D3D12_GRAPHICS_PIPELINE_STATE_DESC description {
 				.pRootSignature {root_signatures.default_signature.get()},
 				.VS {.pShaderBytecode {vertex_shader.data()}, .BytecodeLength {vertex_shader.size()}},
@@ -212,8 +219,8 @@ namespace sandbox {
 					.DepthFunc {D3D12_COMPARISON_FUNC_LESS},
 				},
 				.InputLayout {
-					.pInputElementDescs {layout.data()},
-					.NumElements {gsl::narrow_cast<UINT>(layout.size())}},
+					.pInputElementDescs {common_layout.data()},
+					.NumElements {gsl::narrow_cast<UINT>(common_layout.size())}},
 				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE},
 				.NumRenderTargets {1},
 				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
@@ -231,26 +238,6 @@ namespace sandbox {
 		{
 			const auto vertex_shader = load_compiled_shader(L"project.cso");
 			const auto pixel_shader = load_compiled_shader(L"debug_shading.cso");
-			const std::array layout {
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"SV_POSITION"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				},
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"TEXTURE"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				},
-				D3D12_INPUT_ELEMENT_DESC {
-					.SemanticName {"NORMAL"},
-					.Format {DXGI_FORMAT_R32G32B32_FLOAT},
-					.AlignedByteOffset {D3D12_APPEND_ALIGNED_ELEMENT},
-					.InputSlotClass {D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA},
-				}};
-
 			const D3D12_GRAPHICS_PIPELINE_STATE_DESC description {
 				.pRootSignature {root_signatures.default_signature.get()},
 				.VS {.pShaderBytecode {vertex_shader.data()}, .BytecodeLength {vertex_shader.size()}},
@@ -268,8 +255,8 @@ namespace sandbox {
 					.DepthFunc {D3D12_COMPARISON_FUNC_LESS},
 				},
 				.InputLayout {
-					.pInputElementDescs {layout.data()},
-					.NumElements {gsl::narrow_cast<UINT>(layout.size())}},
+					.pInputElementDescs {common_layout.data()},
+					.NumElements {gsl::narrow_cast<UINT>(common_layout.size())}},
 				.PrimitiveTopologyType {D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE},
 				.NumRenderTargets {1},
 				.RTVFormats {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
@@ -524,8 +511,25 @@ sandbox::graphics_engine_state::graphics_engine_state(
 	m_fence_current_value {1},
 	m_fence {create_fence(*m_device, m_fence_current_value)},
 	m_projection_matrix {compute_projection(*m_swap_chain)},
-	m_object {load_geometry(*m_device, filepath)}
+	m_object {load_geometry(*m_device, filepath)},
+	instance_data {create_object_buffer(*m_device, instance_count * sizeof(vector3))},
+	instance_data_view {
+		.BufferLocation {instance_data->GetGPUVirtualAddress()},
+		.SizeInBytes {instance_count * sizeof(vector3)},
+		.StrideInBytes {sizeof(vector3)}}
 {
+	const gsl::span buffer {map(*instance_data), instance_count * sizeof(vector3)};
+	for (auto x = 0; x < instance_cube_side; ++x) {
+		for (auto y = 0; y < instance_cube_side; ++y) {
+			for (auto z = 0; z < instance_cube_side; ++z) {
+				const vector3 offset {5.0f * x, 5.0f * y, 5.0f * z};
+				const auto index = x * instance_cube_side * instance_cube_side + y * instance_cube_side + z;
+				std::memcpy(&buffer[index * sizeof(vector3)], &offset, sizeof(vector3));
+			}
+		}
+	}
+
+	unmap(*instance_data);
 }
 
 GSL_SUPPRESS(f .6) // Wait-for-idle is necessary but D3D12 APIs are not marked noexcept; std::terminate() is acceptable
@@ -633,7 +637,8 @@ void sandbox::graphics_engine_state::record_object_view_commands(
 
 	m_command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_command_list->IASetIndexBuffer(&object.index_view);
-	m_command_list->IASetVertexBuffers(0, 1, &object.vertex_view);
+	const std::array views {object.vertex_view, instance_data_view};
+	m_command_list->IASetVertexBuffers(0, gsl::narrow_cast<UINT>(views.size()), views.data());
 	maximize_rasterizer(*m_command_list, backbuffer);
 	m_command_list->OMSetRenderTargets(1, &backbuffer_view, false, &m_depth_buffer_view);
 
@@ -644,7 +649,7 @@ void sandbox::graphics_engine_state::record_object_view_commands(
 		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	clear_render_target(*m_command_list, backbuffer_view);
-	m_command_list->DrawIndexedInstanced(object.size, 1, 0, 0, 0);
+	m_command_list->DrawIndexedInstanced(object.size, instance_count, 0, 0, 0);
 	submit_resource_barriers(
 		*m_command_list,
 		create_transition_barrier(backbuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COMMON));

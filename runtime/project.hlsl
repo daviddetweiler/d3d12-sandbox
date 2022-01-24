@@ -8,6 +8,6 @@ cbuffer matrices : register(b0)
 
 vertex_data main(vertex_data vertex)
 {
-	vertex.position = mul(vertex.position, mul(view, projection));
+	vertex.position = mul(vertex.position + float4(vertex.offset, 0.0), mul(view, projection));
 	return vertex;
 }
