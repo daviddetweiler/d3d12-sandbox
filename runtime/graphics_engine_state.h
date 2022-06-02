@@ -65,7 +65,7 @@ namespace sandbox {
 		DirectX::XMMATRIX m_projection_matrix;
 		const loaded_geometry m_object;
 
-		static constexpr auto instance_cube_side = 5;
+		static constexpr auto instance_cube_side = 3;
 		static constexpr auto instance_count = instance_cube_side * instance_cube_side * instance_cube_side;
 		const winrt::com_ptr<ID3D12Resource> instance_data;
 		const D3D12_VERTEX_BUFFER_VIEW instance_data_view;
