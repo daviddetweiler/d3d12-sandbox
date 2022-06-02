@@ -13,7 +13,7 @@ namespace sandbox {
 	}
 }
 
-std::vector<char> sandbox::load_compiled_shader(gsl::cwzstring<> name)
+std::vector<char> sandbox::load_compiled_shader(gsl::cwzstring name)
 {
 	static const auto parent_path {get_self_path()};
 	const auto path = parent_path / name;

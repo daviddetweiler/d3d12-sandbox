@@ -18,5 +18,5 @@ namespace sandbox {
 		std::vector<vertex> faces;
 	};
 
-	wavefront load_wavefront(gsl::czstring<> name);
+	wavefront load_wavefront(gsl::czstring name);
 }

@@ -63,7 +63,7 @@ namespace sandbox {
 	}
 }
 
-sandbox::wavefront sandbox::load_wavefront(gsl::czstring<> name)
+sandbox::wavefront sandbox::load_wavefront(gsl::czstring name)
 {
 	std::ifstream object_file {name, object_file.ate | object_file.binary};
 	object_file.exceptions(object_file.badbit | object_file.failbit);

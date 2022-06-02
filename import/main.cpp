@@ -17,7 +17,7 @@ namespace sandbox {
 	namespace {
 		GSL_SUPPRESS(type) // Used to write byte representation to a binary file
 		void write_streams(
-			gsl::czstring<> filename,
+			gsl::czstring filename,
 			gsl::span<const unsigned int> indices,
 			gsl::span<const vertex_data> vertices)
 		{
@@ -32,7 +32,7 @@ namespace sandbox {
 		}
 
 		void write_wavefront(
-			gsl::czstring<> filename,
+			gsl::czstring filename,
 			gsl::span<const unsigned int> indices,
 			gsl::span<const vertex_data> vertices)
 		{

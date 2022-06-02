@@ -288,7 +288,7 @@ int wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ LPWSTR command_li
 	int argc;
 	const auto argv = CommandLineToArgvW(command_line, &argc);
 	const gsl::span arguments {argv, gsl::narrow_cast<std::size_t>(argc)};
-	if (argc < 1)
+	if (argc < 2)
 		return 1;
 
 	sandbox::host_atomic_state ui_state {};
